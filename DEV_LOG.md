@@ -67,7 +67,18 @@
 - backend
   - dj-rest-auth를 이용한 로그인, 회원가입, Social Login 구현
 
+
 # 2025/12/16(화)
 ## 작업
 - backend
   - Accounts - User 모델에 EmailField 추가
+
+
+# 2025/12/18(목)
+## 작업
+- backend
+  - 명서로 작성한 User 회원가입에 필요한 성별, 이메일, 나이 필드를 추가
+  - django CORS header 추가해 Vue와 상호작용 활성화
+  - articles 폴더 내 파일들 내용 작성
+    - 게시글 모델 작성 (제목, 내용, 작성일, 수정일)
+    - 전체 게시글, 단일 게시글 가져오기 및 작성 기능 추가
