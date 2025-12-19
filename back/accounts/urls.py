@@ -1,5 +1,6 @@
 from django.urls import path, include
-from .views import GoogleLogin
+from .views import GoogleLogIn
+from . import views
 
 urlpatterns = [
     # 로그인
@@ -7,6 +8,9 @@ urlpatterns = [
     # 회원가입
     
     # 소셜 로그인
-    path('google/', GoogleLogin.as_view(), name='google_login'),
+    path('google/', GoogleLogIn.as_view(), name='google_login'),
     
+    # path('follow/<int:user_id>/', views.follow_user, name='follow_user'),
+    # path('unfollow/<int:user_id>/', views.unfollow_user, name='unfollow_user'),
+
 ]

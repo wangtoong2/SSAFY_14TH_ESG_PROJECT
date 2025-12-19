@@ -14,9 +14,9 @@ from .models import Article
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication, BasicAuthentication])
-# @permission_classes([IsAuthenticatedOrReadOnly])
+# @permission_classes([IsAuthenticated])
+# @authentication_classes([TokenAuthentication, BasicAuthentication])
+@permission_classes([IsAuthenticatedOrReadOnly])
 def article_list(request):
     print('USER:', request.user)
     print('AUTH:', request.auth)

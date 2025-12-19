@@ -34,7 +34,7 @@
         content : content.value
       },
       headers: {
-        'Authorization': `Token ${accountStore.token}`
+        'Authorization': `Bearer ${accountStore.token}`
       },
     })
     .then(() => {

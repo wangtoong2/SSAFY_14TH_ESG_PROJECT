@@ -11,7 +11,7 @@ from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 # Create your views here.
 
 
-class GoogleLogin(SocialLoginView):
+class GoogleLogIn(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
     callback_url = 'http://localhost:8000/accounts/google/login/callback/'
     client_class = OAuth2Client

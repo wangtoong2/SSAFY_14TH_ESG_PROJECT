@@ -6,6 +6,8 @@ import { useRouter } from "vue-router"
 export const useAccountStore = defineStore('accounts', () => {
     const API_URL = 'http://127.0.0.1:8000'
     const router = useRouter()
+    const token = ref(null)
+    const userName = ref('')
 
     const signUp = function(payload) {
         const username = payload.username
@@ -36,7 +38,6 @@ export const useAccountStore = defineStore('accounts', () => {
         .catch(err => console.log(err))
     }
 
-    const token = ref(null)
 
     const logIn = function(payload){
         const username = payload.username
@@ -53,10 +54,31 @@ export const useAccountStore = defineStore('accounts', () => {
             .then(res => {
                 console.log('로그인이 완료되었습니다.')
                 console.log(res.data)
+                // token.value = res.data.access
                 token.value = res.data.key
+                console.log(username)
+                userName.value = username
+                // user.value = res.data.user
                 router.push({name:'MainView'})
             })
             .catch(err => console.log(err))
     }
-    return {signUp, logIn, token}
+
+    const isLogIn = computed(() => {
+        return token.value ? true : false
+    })
+    
+    const logOut = function () {
+        axios({
+            method : 'post',
+            url: `${API_URL}/accounts/logout/`
+        })
+        .then((res) => {
+            token.value = null
+            userName.value = null
+            router.push({name : 'ArticleView'})
+        })
+        .catch((err) => console.log(err))
+    }
+    return {signUp, logIn, token, isLogIn, logOut, userName}
 }, {persist : true})

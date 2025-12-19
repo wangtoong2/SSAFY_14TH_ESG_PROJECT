@@ -11,10 +11,13 @@
         <hr>
         <RouterLink :to="{name : 'SignUpView'}">SignUp</RouterLink>
         <hr>
-        <RouterLink :to="{name : 'LoginView'}">Login</RouterLink>
-
-
+        <RouterLink :to="{name : 'LogInView'}">LogIn</RouterLink>
       </nav>
+
+      <form v-if="accountStore.isLogIn" @submit.prevent="logOut">
+        <input type="submit" value="Logout">
+      </form>
+
     </div>
   </header>
 
@@ -23,7 +26,13 @@
 
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
+import { useAccountStore } from '@/stores/accounts';
 
+
+const accountStore = useAccountStore()
+const logOut = function() {
+  accountStore.logOut()
+}
 </script>
 
 <style scoped>

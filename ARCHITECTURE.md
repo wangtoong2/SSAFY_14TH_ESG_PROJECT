@@ -38,7 +38,7 @@ src/
     ArticleList.vue
     ArticleDetail.vue
     CommentList.vue
-    LoginForm.vue
+    LogInForm.vue
 
   pages/
     HomePage.vue
