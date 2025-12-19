@@ -3,9 +3,10 @@ from rest_framework.decorators import api_view
 from rest_framework import status
 
 # permission Decorators
-from rest_framework.decorators import permission_classes
+from rest_framework.decorators import permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 
+from rest_framework.authentication import TokenAuthentication, BasicAuthentication
 from django.shortcuts import get_object_or_404, get_list_or_404
 
 from .serializers import ArticleListSerializer, ArticleSerializer
@@ -14,8 +15,11 @@ from .models import Article
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication, BasicAuthentication])
 # @permission_classes([IsAuthenticatedOrReadOnly])
 def article_list(request):
+    print('USER:', request.user)
+    print('AUTH:', request.auth)
     if request.method == 'GET':
         articles = get_list_or_404(Article)
         serializer = ArticleListSerializer(articles, many=True)

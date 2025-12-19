@@ -10,11 +10,15 @@ export const useArticleStore = defineStore('article', () => {
   ])
   const article = ref([])
   const API_URL = 'http://127.0.0.1:8000'
+  const accountStore = useAccountStore()
 
   const getArticles = function() {
     axios({
       method : 'get',
-      url: `${API_URL}/api/v1/articles/`
+      url: `${API_URL}/api/v1/articles/`,
+      // headers: {
+      //   'Authorization': `Token ${accountStore.token}`
+      // }
     })
     .then(res => {
       console.log(res)

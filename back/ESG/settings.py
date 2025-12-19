@@ -71,9 +71,20 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
+REST_FRAMEWORK = {
+    # Authentication
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        # 'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    # permission
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny'
+    ]
+}
+
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
-    "http://192.168.45.88:5173",
     "http://localhost:5173",
 ]
 
@@ -148,10 +159,8 @@ AUTH_USER_MODEL = 'accounts.User'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
 ACCOUNT_EMAIL_REQUIRED = False
 
 # django live share용 코드
 # 배포시 제거해야함
-DEBUG = True
 ALLOWED_HOSTS = ['*']

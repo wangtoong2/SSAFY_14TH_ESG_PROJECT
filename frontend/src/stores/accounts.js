@@ -28,7 +28,10 @@ export const useAccountStore = defineStore('accounts', () => {
     })
         .then(res => {
             console.log('회원가입이 완료되었습니다.')
-            logIn({username, password1})
+            logIn({
+                username:username,
+                password:password1
+            })
         })
         .catch(err => console.log(err))
     }
@@ -44,7 +47,8 @@ export const useAccountStore = defineStore('accounts', () => {
             url : `${API_URL}/accounts/login/`,
             data : {
                 username, password
-            }
+            },
+            
         })
             .then(res => {
                 console.log('로그인이 완료되었습니다.')
@@ -53,7 +57,6 @@ export const useAccountStore = defineStore('accounts', () => {
                 router.push({name:'MainView'})
             })
             .catch(err => console.log(err))
-
     }
     return {signUp, logIn, token}
 }, {persist : true})
