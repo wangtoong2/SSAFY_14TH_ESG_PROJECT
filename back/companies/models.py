@@ -1,8 +1,21 @@
 from django.db import models
 
 # Create your models here.
-class Company():
-    pass
+class Company(models.Model):
+    """
+    기업 정보를 저장하는 모델 (DART 기준)
+    """
+    corp_code = models.CharField(max_length=32, unique=True)  # DART에서 부여하는 고유 코드
+    corp_name = models.CharField(max_length=255)
+    stock_code = models.CharField(max_length=32, blank=True, null=True)  # 유가증권 코드(없을 수 있음)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Company"
+        verbose_name_plural = "Companies"
+
+    def __str__(self):
+        return f"{self.corp_name} ({self.corp_code})"
 
 
 class CorporateDisclosure(models.Model):
