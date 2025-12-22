@@ -104,3 +104,14 @@ def get_corporate_disclosure_data(corp_name, start_date, end_date):
         return response.json()  # JSON 형태로 반환
     else:
         return {'error': 'Failed to fetch data'}
+
+
+# Backwards-compatible wrappers (some modules expect these old names)
+def fetch_disclosures_for_company(corp_name, start_date, end_date):
+    """Compatibility wrapper for older callers."""
+    return get_corporate_disclosure_data(corp_name, start_date, end_date)
+
+
+def find_corp_code_by_name(corp_name):
+    """Simple stub for compatibility. Returns None — implement lookup if needed."""
+    return None

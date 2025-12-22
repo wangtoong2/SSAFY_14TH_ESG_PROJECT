@@ -74,7 +74,25 @@ class Command(BaseCommand):
 
                     if confirm:
                         try:
-                            CompanyProfile.objects.update_or_create(company=c, defaults={'data': data})
+                            # merge with existing profile data to avoid accidental overwrite
+                            prof = CompanyProfile.objects.filter(company=c).first()
+                            if prof and prof.data and isinstance(prof.data, dict):
+                                existing = prof.data.copy()
+                            else:
+                                existing = {}
+                            merged = existing.copy()
+                            merged.update({k: v for k, v in data.items() if v is not None})
+                            # deep merge company_overview
+                            existing_co = (existing.get('company_overview') or {}) if isinstance(existing, dict) else {}
+                            new_co = (data.get('company_overview') or {}) if isinstance(data, dict) else {}
+                            # Do not persist `industry_name` per request
+                            if isinstance(new_co, dict) and 'industry_name' in new_co:
+                                new_co.pop('industry_name', None)
+                            merged_co = existing_co.copy()
+                            merged_co.update({k: v for k, v in new_co.items() if v is not None})
+                            merged['company_overview'] = merged_co
+
+                            CompanyProfile.objects.update_or_create(company=c, defaults={'data': merged})
                         except Exception as db_e:
                             elog.write(f'DB error for {c.corp_name}: {db_e}\n')
                             elog.flush()

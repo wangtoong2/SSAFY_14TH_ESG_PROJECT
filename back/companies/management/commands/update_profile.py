@@ -58,12 +58,34 @@ class Command(BaseCommand):
             ov['region'] = region
             data['company_overview'] = ov
 
-        CompanyProfile.objects.update_or_create(company=c, defaults={'data': data})
+        # merge with existing profile data to avoid overwriting fields unintentionally
+        try:
+            prof = CompanyProfile.objects.filter(company=c).first()
+            if prof and prof.data and isinstance(prof.data, dict):
+                existing = prof.data.copy()
+            else:
+                existing = {}
+        except Exception:
+            existing = {}
 
-        self.stdout.write('overview_keys: ' + str(list((data.get('company_overview') or {}).keys())))
-        self.stdout.write('industry: ' + str((data.get('company_overview') or {}).get('industry')))
-        self.stdout.write('industry_code: ' + str((data.get('company_overview') or {}).get('industry_code')))
-        self.stdout.write('industry_name: ' + str((data.get('company_overview') or {}).get('industry_name')))
-        self.stdout.write('region: ' + str((data.get('company_overview') or {}).get('region')))
-        self.stdout.write('financials_present: ' + str(bool(data.get('financials'))))
-        self.stdout.write('company_size: ' + str(data.get('company_size')))
+        # shallow merge: keep existing keys unless new data provides them
+        merged = existing.copy()
+        merged.update({k: v for k, v in data.items() if v is not None})
+
+        # deep-merge company_overview dict so we don't drop industry/region keys
+        existing_co = (existing.get('company_overview') or {}) if isinstance(existing, dict) else {}
+        new_co = (data.get('company_overview') or {}) if isinstance(data, dict) else {}
+        # Do not persist `industry_name` per request
+        if isinstance(new_co, dict) and 'industry_name' in new_co:
+            new_co.pop('industry_name', None)
+        merged_co = existing_co.copy()
+        merged_co.update({k: v for k, v in new_co.items() if v is not None})
+        merged['company_overview'] = merged_co
+
+        CompanyProfile.objects.update_or_create(company=c, defaults={'data': merged})
+
+        self.stdout.write('overview_keys: ' + str(list((merged.get('company_overview') or {}).keys())))
+        self.stdout.write('industry: ' + str((merged.get('company_overview') or {}).get('industry')))
+        self.stdout.write('industry_code: ' + str((merged.get('company_overview') or {}).get('industry_code')))
+        self.stdout.write('region: ' + str((merged.get('company_overview') or {}).get('region')))
+        self.stdout.write('company_size: ' + str(merged.get('company_size')))

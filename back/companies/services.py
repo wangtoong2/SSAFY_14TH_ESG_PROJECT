@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import time
+import requests
 from django.conf import settings
 from .models import Company, CompanyProfile
 from .api import get_corporate_disclosure_data
@@ -39,6 +40,26 @@ def _extract_industry_fields_from_raw(raw):
     return out
 
 
+def _dedupe_list_of_dicts(items, key_fields):
+    """Remove duplicate dict entries from a list preserving order.
+
+    key_fields: list of keys to form a uniqueness tuple; missing keys use None.
+    """
+    seen = set()
+    out = []
+    for it in items or []:
+        if not isinstance(it, dict):
+            # fall back to string representation
+            k = tuple([str(it)])
+        else:
+            k = tuple(it.get(f) for f in key_fields)
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(it)
+    return out
+
+
 # ESG-specific keyword detection removed per user request
 
 
@@ -71,16 +92,19 @@ def fetch_company_data(corp_name, days=365):
         return result
 
     items = resp.get('list') or []
+    # dedupe items by reception date, report name and reception number if present
+    items = _dedupe_list_of_dicts(items, ['rcept_dt', 'report_nm', 'rcept_no'])
     result['num_disclosures_365d'] = len(items)
 
-    result['latest_disclosures'] = [
-        {
+    latest = []
+    for it in items[:5]:
+        latest.append({
             'date': it.get('rcept_dt'),
             'title': it.get('report_nm'),
             'type': it.get('rpt_nm')
-        }
-        for it in items[:5]
-    ]
+        })
+    # remove duplicate disclosure dicts by date+title
+    result['latest_disclosures'] = _dedupe_list_of_dicts(latest, ['date', 'title'])
 
     if items and items[0].get('corp_code'):
         result['corp_code'] = items[0]['corp_code']
@@ -149,11 +173,14 @@ def fetch_financial_summary(corp, latest_years=2):
         revenue = find_amount(['매출', '매출액'])
         operating = find_amount(['영업이익'])
         net = find_amount(['당기순이익'])
+        # capital / equity (자본금, 자본총계 등)
+        capital = find_amount(['자본금', '자본총계', '자본'])
 
         out['years'][str(y)] = {
             'revenue': revenue,
             'operating_income': operating,
-            'net_income': net
+            'net_income': net,
+            'capital': capital
         }
 
         if prev_revenue not in (None, 0) and revenue is not None:
@@ -166,23 +193,46 @@ def fetch_financial_summary(corp, latest_years=2):
 
     if out['years']:
         out['latest_year'] = max(map(int, out['years'].keys()))
+        # set latest capital if available
+        try:
+            latest = out['latest_year']
+            lc = out['years'].get(str(latest), {}).get('capital')
+            out['latest_capital'] = lc
+        except Exception:
+            out['latest_capital'] = None
 
     return out
 
 
 def fetch_company_overview(corp):
     api_key = getattr(settings, 'DART_API_KEY', None) or os.environ.get('DART_API_KEY')
-    if not OpenDartReader or not api_key:
-        return None
-
-    odr = OpenDartReader(api_key)
     raw = None
-    try:
-        raw = odr.company(corp)
-    except Exception:
+    # Prefer OpenDartReader if available (parses nicely)
+    if OpenDartReader and api_key:
         try:
-            raw_list = odr.company_by_name(corp)
-            raw = raw_list[0] if raw_list else None
+            odr = OpenDartReader(api_key)
+            raw = odr.company(corp)
+        except Exception:
+            try:
+                raw_list = odr.company_by_name(corp)
+                raw = raw_list[0] if raw_list else None
+            except Exception:
+                raw = None
+    else:
+        # HTTP fallback to DART public API (corp_code or corp_name)
+        try:
+            url = 'https://opendart.fss.or.kr/api/company.json'
+            params = {'crtfc_key': api_key}
+            # if input looks like corp_code (all digits and length 8), use corp_code param
+            if isinstance(corp, str) and corp.isdigit() and len(corp) >= 6:
+                params['corp_code'] = corp
+            else:
+                params['corp_name'] = corp
+            r = requests.get(url, params=params, timeout=15)
+            r.raise_for_status()
+            jr = r.json()
+            # DART returns {'status': '000', ...} for success
+            raw = jr
         except Exception:
             raw = None
 

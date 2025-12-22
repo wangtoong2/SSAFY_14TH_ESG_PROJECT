@@ -15,3 +15,27 @@ class GoogleLogIn(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
     callback_url = 'http://localhost:8000/accounts/google/login/callback/'
     client_class = OAuth2Client
+
+
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.response import Response
+from rest_framework import status
+
+@api_view(['DELETE'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def delete(request):
+    user = request.user
+
+    # 🔥 토큰 먼저 삭제 (선택이지만 권장)
+    request.auth.delete()
+
+    # 🔥 유저 삭제
+    user.delete()
+
+    return Response(
+        {'detail': '회원 탈퇴가 완료되었습니다.'},
+        status=status.HTTP_204_NO_CONTENT
+    )
