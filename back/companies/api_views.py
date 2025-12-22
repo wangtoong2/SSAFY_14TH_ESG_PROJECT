@@ -1,7 +1,12 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .services import recommend_companies, fetch_company_data, classify_company_size, extract_region_from_address
+from .services import (
+    recommend_companies,
+    fetch_company_data,
+    classify_company_size,
+    build_fixed_companyprofile_payload,
+)
 from .models import Company, CompanyProfile
 from .serializers import PreferencesSerializer
 from .api import get_all_corporate_disclosure_data
@@ -69,36 +74,34 @@ class CompanyProfileSummary(APIView):
                 data = fetch_company_data(c.corp_code or c.corp_name)
                 # ensure stock_code and size
                 data['corp_name'] = c.corp_name
-                data['stock_code'] = c.stock_code
+                data['corp_code'] = c.corp_code
+                canonical_stock_code = (c.stock_code or '').strip() or None
+                data['stock_code'] = canonical_stock_code
+
+                # Avoid duplicated identifiers inside company_overview
                 try:
-                    data['company_size'] = classify_company_size(c.stock_code, data.get('financials'))
+                    overview = data.get('company_overview') if isinstance(data, dict) else None
+                    if isinstance(overview, dict):
+                        for k in ['corp_name', 'corp_code', 'stock_code']:
+                            overview.pop(k, None)
+                        data['company_overview'] = overview
+                except Exception:
+                    pass
+                try:
+                    data['company_size'] = classify_company_size(canonical_stock_code, data.get('financials'))
+                except Exception:
+                    pass
+
+                try:
+                    if isinstance(data.get('company_overview'), dict):
+                        data['company_overview']['company_size'] = data.get('company_size')
                 except Exception:
                     pass
                 CompanyProfile.objects.update_or_create(company=c, defaults={'data': data})
             except Exception as e:
                 return Response({'error': f'Failed to fetch profile: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        overview = (data or {}).get('company_overview') or {}
-        industry_code = overview.get('industry_code')
-        # If industry_code missing but raw present, try to backfill using existing helper
-        if not industry_code and overview.get('raw'):
-            try:
-                from .services import _extract_industry_fields_from_raw
-                norm = _extract_industry_fields_from_raw(overview.get('raw'))
-                industry_code = norm.get('industry_code') or industry_code
-            except Exception:
-                pass
-
-        addr = overview.get('addr')
-        region = overview.get('region') or (extract_region_from_address(addr) if addr else None)
-
-        payload = {
-            'corp_name': c.corp_name,
-            'industry_code': industry_code,
-            'financials': data.get('financials') if data else None,
-            'region': region,
-        }
-        return Response(payload)
+        return Response(build_fixed_companyprofile_payload(c, data))
 
 
 class UserCompanyRecommendations(APIView):

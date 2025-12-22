@@ -112,3 +112,93 @@
   - LLM 활용해 기업 추천 -> 가능하면 RAG도 구현
   - 댓글 및 게시글 기능 구현
   - 회원 탈퇴 기능 구현
+
+  - 데이터 정규화 진행
+    - 아래와 같이 받아오는 데이터가 서로 달랐음
+    - backfill 로직을 추가해 데이터 정규화 진행
+  ```
+  {
+    "corp_name": "다코",
+    "corp_code": "00434003",
+    "num_disclosures_365d": 0,
+    "latest_disclosures": [],
+    "financials": null,
+    "company_overview": {
+      "ceo_nm": "김상규",
+      "addr": "충청남도 천안시 청당동 419-12",
+      "industry": null,
+      "raw": {
+        "status": "000",
+        "message": "정상",
+        "corp_code": "00434003",
+        "corp_name": "(주)다코",
+        "corp_name_eng": "Daco corporation",
+        "stock_name": "다코",
+        "stock_code": "",
+        "ceo_nm": "김상규",
+        "corp_cls": "E",
+        "jurir_no": "1615110021778",
+        "bizr_no": "3128134722",
+        "adres": "충청남도 천안시 청당동 419-12",
+        "hm_url": "없음",
+        "ir_url": "",
+        "phn_no": "041-565-1800",
+        "fax_no": "041-563-6808",
+        "induty_code": "25931",
+        "est_dt": "19970611",
+        "acc_mt": "12"
+      },
+      "industry_code": "25931",
+      "region": "충청남도"
+    },
+    "company_size": "중견",
+    "industry_outlook": {
+      "score": 0,
+      "label": "중립"
+    },
+    "stock_code": null
+  }
+  ```
+
+  ```
+  {
+    "corp_name": "굿앤엘에스",
+    "num_disclosures_365d": 0,
+    "latest_disclosures": [],
+    "company_overview": {
+      "ceo_nm": "정진형",
+      "addr": "서울특별시 중구 태평로2가 120",
+      "raw": {
+        "status": "000",
+        "message": "정상",
+        "corp_code": "00430964",
+        "corp_name": "굿앤엘에스주식회사",
+        "corp_name_eng": "Good & LS Co.,Ltd.",
+        "stock_name": "굿앤엘에스",
+        "stock_code": "",
+        "ceo_nm": "정진형",
+        "corp_cls": "E",
+        "jurir_no": "1101112672875",
+        "bizr_no": "1048177488",
+        "adres": "서울특별시 중구 태평로2가 120",
+        "hm_url": "",
+        "ir_url": "",
+        "phn_no": "02-6263-8185",
+        "fax_no": "",
+        "induty_code": "64999",
+        "est_dt": "20021213",
+        "acc_mt": "11"
+      },
+      "industry_code": "64999",
+      "region": "서울특별시"
+    },
+    "company_size": "중견",
+    "industry_outlook": {
+      "score": 0,
+      "label": "중립"
+    },
+    "stock_code": " ",
+    "corp_code": "00430964",
+    "financials": null
+  }
+  ```

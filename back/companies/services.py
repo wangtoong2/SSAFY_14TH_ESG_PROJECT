@@ -16,6 +16,16 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 
+def _canonical_stock_code(v):
+    if v is None:
+        return None
+    try:
+        s = str(v).strip()
+    except Exception:
+        return None
+    return s or None
+
+
 def extract_region_from_address(addr):
     """Extract a top-level region (시/도) from a Korean address string.
 
@@ -156,15 +166,34 @@ def fetch_company_data(corp_name, days=365):
     result['financials'] = fetch_financial_summary(corp_name)
 
     # 기업 개요
-    result['company_overview'] = fetch_company_overview(corp_name)
+    overview = fetch_company_overview(corp_name)
+    result['company_overview'] = overview
 
-    # overview가 실제 기업명을 주면 top-level에도 반영
+    # overview가 실제 기업명/기업코드를 주면 top-level에도 반영
     try:
-        ov_name = (result.get('company_overview') or {}).get('corp_name')
-        if ov_name:
-            result['corp_name'] = ov_name
+        if isinstance(overview, dict):
+            ov_name = overview.get('corp_name')
+            ov_code = overview.get('corp_code')
+            if ov_name:
+                result['corp_name'] = ov_name
+            if ov_code:
+                result['corp_code'] = ov_code
     except Exception:
         pass
+
+    # company_overview는 보조 정보만 보관: top-level과 중복되는 키 제거
+    try:
+        if isinstance(result.get('company_overview'), dict):
+            sanitized = dict(result['company_overview'])
+            for k in ['corp_name', 'corp_code', 'stock_code']:
+                sanitized.pop(k, None)
+            result['company_overview'] = sanitized
+    except Exception:
+        pass
+
+    # corp_code로 호출된 경우 top-level corp_code는 입력값을 기본으로 채움
+    if result.get('corp_code') is None and is_corp_code:
+        result['corp_code'] = corp_name
 
     # 산업 전망
     result['industry_outlook'] = compute_industry_outlook(
@@ -189,7 +218,8 @@ def _parse_amount(v):
 
 
 def fetch_financial_summary(corp, latest_years=2):
-    api_key = getattr(settings, 'DART_API_KEY', None) or os.environ.get('DART_API_KEY')
+    # Prefer per-process override via env var, then fallback to Django settings
+    api_key = os.environ.get('DART_API_KEY') or getattr(settings, 'DART_API_KEY', None)
     if not OpenDartReader or not api_key:
         return None
 
@@ -256,7 +286,8 @@ def fetch_financial_summary(corp, latest_years=2):
 
 
 def fetch_company_overview(corp):
-    api_key = getattr(settings, 'DART_API_KEY', None) or os.environ.get('DART_API_KEY')
+    # Prefer per-process override via env var, then fallback to Django settings
+    api_key = os.environ.get('DART_API_KEY') or getattr(settings, 'DART_API_KEY', None)
     raw = None
     # Prefer OpenDartReader if available (parses nicely)
     if OpenDartReader and api_key:
@@ -297,6 +328,9 @@ def fetch_company_overview(corp):
         'ceo_nm': raw.get('ceo_nm'),
         # DART company.json uses 'adres'
         'addr': raw.get('addr') or raw.get('adres'),
+        # 원본 키도 함께 보관(요청 스키마 호환)
+        'adres': raw.get('adres') or raw.get('addr') or (raw.get('addr') or raw.get('adres')),
+        'est_dt': raw.get('est_dt'),
         # 기존 호환용 (문자열)
         'industry': raw.get('induty') or raw.get('industry_nm') or raw.get('biz_type'),
         # only store raw when it's a valid company payload, not an API error
@@ -308,6 +342,12 @@ def fetch_company_overview(corp):
         norm = _extract_industry_fields_from_raw(raw)
         summary.update(norm)
         # → industry_code, industry_name 들어감
+    except Exception:
+        pass
+
+    # 요청 스키마 키: induty_code
+    try:
+        summary['induty_code'] = summary.get('induty_code') or summary.get('industry_code') or raw.get('induty_code')
     except Exception:
         pass
 
@@ -351,6 +391,68 @@ def classify_company_size(stock_code, financials):
         return '중견'
     else:
         return '중소'
+
+
+def build_fixed_companyprofile_payload(company, data):
+    """Build a stable response schema regardless of how `data` is stored.
+
+    Output shape (keys always present):
+      {
+        corp_name, corp_code,
+        company_overview: {ceo_nm, addr, industry, adres, induty_code, est_dt, region, company_size},
+        industry_outlook
+      }
+    """
+
+    data = data if isinstance(data, dict) else {}
+    overview = data.get('company_overview')
+    overview = overview if isinstance(overview, dict) else {}
+    raw = overview.get('raw') if isinstance(overview.get('raw'), dict) else None
+
+    # Prefer normalized fields; fall back to raw DART keys where possible.
+    addr = overview.get('addr') or (raw.get('adres') if raw else None) or (raw.get('addr') if raw else None)
+    ceo_nm = overview.get('ceo_nm') or (raw.get('ceo_nm') if raw else None)
+    industry = overview.get('industry')
+
+    adres = overview.get('adres') or (raw.get('adres') if raw else None) or addr
+    induty_code = (
+        overview.get('induty_code')
+        or overview.get('industry_code')
+        or (raw.get('induty_code') if raw else None)
+        or (raw.get('industry_code') if raw else None)
+        or (raw.get('induty_cd') if raw else None)
+    )
+    est_dt = overview.get('est_dt') or (raw.get('est_dt') if raw else None)
+
+    region = overview.get('region') or extract_region_from_address(addr)
+
+    # company_size: prefer precomputed, else compute from canonical inputs.
+    company_size = overview.get('company_size') or data.get('company_size')
+    if company_size is None:
+        try:
+            stock_code = _canonical_stock_code(data.get('stock_code') or getattr(company, 'stock_code', None))
+            company_size = classify_company_size(stock_code, data.get('financials'))
+        except Exception:
+            company_size = None
+
+    industry_outlook = data.get('industry_outlook')
+
+    payload = {
+        'corp_name': getattr(company, 'corp_name', None) or data.get('corp_name'),
+        'corp_code': getattr(company, 'corp_code', None) or data.get('corp_code'),
+        'company_overview': {
+            'ceo_nm': ceo_nm,
+            'addr': addr,
+            'industry': industry,
+            'adres': adres,
+            'induty_code': induty_code,
+            'est_dt': est_dt,
+            'region': region,
+            'company_size': company_size,
+        },
+        'industry_outlook': industry_outlook,
+    }
+    return payload
 
 
 def compute_industry_outlook(financials, num_disclosures):
