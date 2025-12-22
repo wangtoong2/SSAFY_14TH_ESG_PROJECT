@@ -2,7 +2,6 @@
 import { mdiClose } from '@mdi/js'
 import AsideMenuList from '@/components/AsideMenuList.vue'
 import BaseIcon from '@/components/BaseIcon.vue'
-import PremiumVersionBadge from './PremiumVersionBadge.vue'
 
 defineProps({
   menu: {
@@ -42,7 +41,6 @@ const asideLgCloseClick = (event) => {
       >
         <AsideMenuList :menu="menu" @menu-click="menuClick" />
         <div class="px-6 py-3">
-          <PremiumVersionBadge />
         </div>
       </div>
 

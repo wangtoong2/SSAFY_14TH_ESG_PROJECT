@@ -23,6 +23,9 @@ import CardBoxClient from '@/components/CardBoxClient.vue'
 import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import SectionBannerStarOnGitHub from '@/components/SectionBannerStarOnGitHub.vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const chartData = ref(null)
 
@@ -46,13 +49,12 @@ const transactionBarItems = computed(() => mainStore.history)
     <SectionMain>
       <SectionTitleLineWithButton :icon="mdiChartTimelineVariant" title="주간 추천 기업" main>
         <BaseButton
-          href="https://github.com/justboil/admin-one-vue-tailwind"
-          target="_blank"
           :icon="mdiGithub"
-          label="더보기로 링크변경"
+          label="글쓰기"
           color="contrast"
           rounded-full
           small
+          @click="router.push({name : 'Create'})"
         />
       </SectionTitleLineWithButton>
 

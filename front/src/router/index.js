@@ -1,33 +1,15 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
-import Style from '@/views/StyleView.vue'
-import Home from '@/views/HomeView.vue'
+import { createRouter, createWebHistory } from 'vue-router'
+// import Style from '@/views/StyleView.vue'
+
 
 const routes = [
   {
-    meta: {
-      title: 'Select style',
-    },
-    path: '/',
-    name: 'style',
-    component: Style,
-  },
-  {
-    // Document title tag
-    // We combine it with defaultDocumentTitle set in `src/main.js` on router.afterEach hook
     meta: {
       title: 'Dashboard',
     },
     path: '/dashboard',
     name: 'dashboard',
-    component: Home,
-  },
-  {
-    meta: {
-      title: 'Tables',
-    },
-    path: '/tables',
-    name: 'tables',
-    component: () => import('@/views/TablesView.vue'),
+    component: () => import('@/views/DashboardView.vue'),
   },
   {
     meta: {
@@ -44,22 +26,6 @@ const routes = [
     path: '/profile',
     name: 'profile',
     component: () => import('@/views/ProfileView.vue'),
-  },
-  {
-    meta: {
-      title: 'Ui',
-    },
-    path: '/ui',
-    name: 'ui',
-    component: () => import('@/views/UiView.vue'),
-  },
-  {
-    meta: {
-      title: 'Responsive layout',
-    },
-    path: '/responsive',
-    name: 'responsive',
-    component: () => import('@/views/ResponsiveView.vue'),
   },
   {
     meta: {
@@ -109,10 +75,20 @@ const routes = [
     name: 'ArticleList',
     component: () => import('@/views/ArticleListView.vue'),
   },
+  {
+    path: '/articles/:id',
+    name: 'ArticleDetail',
+    component: () => import('@/views/ArticleDetailView.vue'),
+  },
+  {
+    path: '/articles/:id/edit',
+    name: 'ArticleEdit',
+    component: () => import('@/views/ArticleEditView.vue'),
+  }
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
   scrollBehavior(to, from, savedPosition) {
     return savedPosition || { top: 0 }

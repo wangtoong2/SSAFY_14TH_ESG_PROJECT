@@ -1,74 +1,41 @@
-<script setup>
-import { reactive } from 'vue'
-import { useRouter } from 'vue-router'
-import SectionFullScreen from '@/components/SectionFullScreen.vue'
-import CardBox from '@/components/CardBox.vue'
-import FormCheckRadio from '@/components/FormCheckRadio.vue'
-import FormField from '@/components/FormField.vue'
-import FormControl from '@/components/FormControl.vue'
-import BaseButton from '@/components/BaseButton.vue'
-import LayoutGuest from '@/layouts/LayoutGuest.vue'
-import { mdiAccount, mdiAsterisk } from '@mdi/js'
-
-const form = reactive({
-  login: '',
-  pass: '',
-  remember: true,
-})
-
-const router = useRouter()
-
-const submit = () => {
-  router.push('/dashboard')
-}
-</script>
-
 <template>
   <LayoutGuest>
     <SectionFullScreen
     v-slot="{ cardClass }"
-  class="login-bg-soft"
-  >
+    class="login-bg-soft"
+    >
   <CardBox
-    :class="[cardClass, 'login-card']"
-    is-form
-    @submit.prevent="submit"
+  :class="[cardClass, 'login-card']"
   >
   <h1 class="login-title">로그인</h1>
-
+      <form @submit.prevent="logIn">
         <FormField label="아이디">
           <FormControl
-            v-model="form.login"
-            :icon="mdiAccount"
-            name="login"
-            autocomplete="username"
+          v-model="username"
+          :icon="mdiAccount"
+          name="login"
+          autocomplete="username"
           />
         </FormField>
 
         <FormField label="비밀번호">
           <FormControl
-            v-model="form.pass"
-            :icon="mdiAsterisk"
-            type="password"
-            autocomplete="current-password"
+          v-model="password"
+          :icon="mdiAsterisk"
+          type="password"
+          autocomplete="password"
           />
         </FormField>
 
-        <FormCheckRadio
-          v-model="form.remember"
-          label="로그인 상태 유지"
-          :input-value="true"
-        />
-
         <!-- 메인 로그인 버튼 -->
         <BaseButton
-          type="submit"
-          color="success"
-          label="로그인"
-          :icon="mdiAccount"
-          class="login-main-btn"
+        type="submit"
+        color="success"
+        label="로그인"
+        :icon="mdiAccount"
+        class="login-main-btn"
         />
-
+      </form>
         <!-- 하단 링크 -->
         <div class="login-links">
           <RouterLink to="/find-password">비밀번호 찾기</RouterLink>
@@ -82,6 +49,39 @@ const submit = () => {
     </SectionFullScreen>
   </LayoutGuest>
 </template>
+
+<script setup>
+import { reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import SectionFullScreen from '@/components/SectionFullScreen.vue'
+import CardBox from '@/components/CardBox.vue'
+import FormCheckRadio from '@/components/FormCheckRadio.vue'
+import FormField from '@/components/FormField.vue'
+import FormControl from '@/components/FormControl.vue'
+import BaseButton from '@/components/BaseButton.vue'
+import LayoutGuest from '@/layouts/LayoutGuest.vue'
+import { mdiAccount, mdiAsterisk } from '@mdi/js'
+import { useAccountStore } from '@/stores/accounts';
+import { ref } from 'vue'
+const accountStore = useAccountStore()
+
+const username = ref(null)
+const password = ref(null)
+
+const logIn = function () {
+  const payload = {
+    username : username.value,
+    password : password.value,
+  }
+  accountStore.logIn(payload)
+}
+
+const router = useRouter()
+
+// const submit = () => {
+//   router.push('/dashboard')
+// }
+</script>
 
 <style scoped>
 .login-bg {

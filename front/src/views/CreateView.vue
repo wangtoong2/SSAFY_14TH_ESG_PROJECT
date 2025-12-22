@@ -1,19 +1,82 @@
+<!-- <template>
+  <LayoutAuthenticated>
+    <SectionMain>
+      <SectionTitleLineWithButton
+      :icon="mdiBallotOutline"
+      title="게시글 작성"
+      main
+      />
+      
+      <CardBox isform @submit.prevent="createArticle">
+        <FormField label="제목">
+          <FormControl
+          v-model.trim="form.title"
+          type="text"
+          placeholder="제목을 입력하세요."
+          />
+        </FormField>
+        
+        <FormField label="분류">
+          <FormControl
+          v-model="form.department"
+          :options="selectOptions"
+          />
+        </FormField>
+        
+        <BaseDivider />
+        
+        <FormField label="내용">
+          <FormControl
+          v-model.trim="form.content"
+          type="textarea"
+          placeholder="내용을 입력하세요."
+          />
+        </FormField>
+        
+        
+        
+        <template #footer>
+          <BaseButtons>
+              <BaseButton 
+              type="submit"
+              color="info"
+              label="Submit" 
+              />
+            <BaseButton 
+              type="reset"
+              color="info" 
+              outline 
+              label="Reset" />
+          </BaseButtons>
+        </template>
+      </CardBox>
+    </SectionMain>
+  </LayoutAuthenticated>
+</template>
+
+
 <script setup>
-import { reactive, ref } from 'vue'
-import { mdiBallotOutline, mdiAccount, mdiMail, mdiGithub } from '@mdi/js'
+import { reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
+import { mdiBallotOutline } from '@mdi/js'
+import {useArticleStore} from '@/stores/articles'
+
+import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionMain from '@/components/SectionMain.vue'
+import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import CardBox from '@/components/CardBox.vue'
-import FormCheckRadioGroup from '@/components/FormCheckRadioGroup.vue'
-import FormFilePicker from '@/components/FormFilePicker.vue'
 import FormField from '@/components/FormField.vue'
 import FormControl from '@/components/FormControl.vue'
 import BaseDivider from '@/components/BaseDivider.vue'
-import BaseButton from '@/components/BaseButton.vue'
 import BaseButtons from '@/components/BaseButtons.vue'
-import SectionTitle from '@/components/SectionTitle.vue'
-import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
-import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
-import NotificationBarInCard from '@/components/NotificationBarInCard.vue'
+import BaseButton from '@/components/BaseButton.vue'
+
+const router = useRouter()
+const API_URL = 'http://127.0.0.1:8000/api/v1'
+
+// 예시: localStorage 토큰
+const token = localStorage.getItem('token')
 
 const selectOptions = [
   { id: 1, label: 'Business development' },
@@ -22,66 +85,168 @@ const selectOptions = [
 ]
 
 const form = reactive({
-  name: 'John Doe',
-  email: 'john.doe@example.com',
-  phone: '',
+  title: '',
+  content: '',
   department: selectOptions[0],
-  subject: '',
-  question: '',
 })
 
-const customElementsForm = reactive({
-  checkbox: ['lorem'],
-  radio: 'one',
-  switch: ['one'],
-  file: null,
-})
+const createArticle = async () => {
+  console.log('createArticle 호출됨')
+  if (!form.title || !form.content) {
+    alert('제목과 내용을 입력하세요.')
+    return
+  }
 
-const submit = () => {
-  //
+  const payload = {
+    title: form.title,
+    content: form.content,
+    department: form.department.id,
+  }
+
+  console.log('payload:', payload)
+  console.log('token:', token)
+
+  try {
+    await axios.post(
+      `${API_URL}/articles/`,
+      payload,
+      {
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+      }
+    )
+    console.log('게시글 생성 성공')
+    router.push({ name: 'ArticleList' })
+  } 
+  catch (err) {
+    console.error('게시글 생성 실패:', err.response?.data || err)
+    alert('게시글 등록에 실패했습니다.')
+  }
 }
-
-const formStatusWithHeader = ref(true)
-
-const formStatusCurrent = ref(0)
-
-const formStatusOptions = ['info', 'success', 'danger', 'warning']
-
-const formStatusSubmit = () => {
-  formStatusCurrent.value = formStatusOptions[formStatusCurrent.value + 1]
-    ? formStatusCurrent.value + 1
-    : 0
-}
-</script>
+</script> -->
 
 <template>
   <LayoutAuthenticated>
     <SectionMain>
-      <SectionTitleLineWithButton :icon="mdiBallotOutline" title="게시글 작성" main>
-        
-      </SectionTitleLineWithButton>
-      <CardBox form @submit.prevent="submit">
+      <SectionTitleLineWithButton
+        :icon="mdiBallotOutline"
+        title="게시글 작성"
+        main
+      />
+
+      <form @submit.prevent="createArticle" class="space-y-6">
+
         <FormField label="제목">
-          <FormControl v-model="form.phone" type="text" placeholder="제목을 입력하세요." />
+          <FormControl
+            v-model.trim="form.title"
+            type="text"
+            placeholder="제목을 입력하세요."
+          />
         </FormField>
 
         <FormField label="분류">
-          <FormControl v-model="form.department" :options="selectOptions" />
+          <FormControl
+            v-model="form.department"
+            :options="selectOptions"
+          />
         </FormField>
-
-        <BaseDivider />
 
         <FormField label="내용">
-          <FormControl type="textarea" />
+          <FormControl
+            v-model.trim="form.content"
+            type="textarea"
+            placeholder="내용을 입력하세요."
+          />
         </FormField>
 
-        <template #footer>
-          <BaseButtons>
-            <BaseButton type="submit" color="info" label="Submit" />
-            <BaseButton type="reset" color="info" outline label="Reset" />
-          </BaseButtons>
-        </template>
-      </CardBox>
+        <BaseButtons>
+          <BaseButton
+            type="submit"
+            color="info"
+            label="Submit"
+          />
+          <BaseButton
+            type="reset"
+            color="info"
+            outline
+            label="Reset"
+          />
+        </BaseButtons>
+
+      </form>
     </SectionMain>
   </LayoutAuthenticated>
 </template>
+
+<script setup>
+import { reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
+import { mdiBallotOutline } from '@mdi/js'
+
+import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
+import SectionMain from '@/components/SectionMain.vue'
+import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
+import FormField from '@/components/FormField.vue'
+import FormControl from '@/components/FormControl.vue'
+import BaseButtons from '@/components/BaseButtons.vue'
+import BaseButton from '@/components/BaseButton.vue'
+import { useAccountStore } from '@/stores/accounts'
+
+const accountStore = useAccountStore()
+const router = useRouter()
+const API_URL = 'http://127.0.0.1:8000/api/v1'
+
+
+const selectOptions = [
+  { id: 1, label: 'Business development' },
+  { id: 2, label: 'Marketing' },
+  { id: 3, label: 'Sales' },
+]
+
+const form = reactive({
+  title: '',
+  content: '',
+  department: selectOptions[0],
+})
+
+const createArticle = async () => {
+  const token = accountStore.token
+  console.log('🔥 createArticle 호출됨')
+
+  if (!form.title || !form.content) {
+    alert('제목과 내용을 입력하세요.')
+    return
+  }
+
+  const payload = {
+    title: form.title,
+    content: form.content,
+    department: form.department.id,
+  }
+
+  console.log('payload:', payload)
+  console.log('token:', token)
+
+  try {
+    await axios.post(
+      `${API_URL}/articles/`,
+      payload,
+      {
+        headers: {
+          Authorization: `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    console.log('✅ 게시글 생성 성공')
+    router.push({ name: 'ArticleList' })
+
+  } catch (err) {
+    console.error('❌ 게시글 생성 실패:', err.response?.data || err)
+    alert('게시글 등록에 실패했습니다.')
+  }
+}
+</script>

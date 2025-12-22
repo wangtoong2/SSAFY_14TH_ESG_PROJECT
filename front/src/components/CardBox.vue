@@ -40,6 +40,7 @@ const componentClass = computed(() => {
 })
 
 const submit = (event) => {
+  event.preventDefault()
   emit('submit', event)
 }
 </script>

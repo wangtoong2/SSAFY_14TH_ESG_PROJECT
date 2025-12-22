@@ -13,7 +13,13 @@ import BaseButtons from '@/components/BaseButtons.vue'
 import UserCard from '@/components/UserCard.vue'
 import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
+import { useAccountStore } from '@/stores/accounts'
 
+const accountStore = useAccountStore()
+
+const withdraw = () => {
+  accountStore.withdraw()
+}
 const mainStore = useMainStore()
 
 const profileForm = reactive({
@@ -257,25 +263,31 @@ const filterResults = () => {
           
           <BaseDivider />
           
-          <FormField label="회원탈퇴" help="Required. New password one more time">
-            <FormControl
-              v-model="passwordForm.password_confirmation"
-              :icon="mdiFormTextboxPassword"
-              name="password_confirmation"
-              type="password"
-              required
-              autocomplete="new-password"
-            />
-          </FormField>
-
-          <template #footer>
+        
+          <!-- <template #footer>
             <BaseButtons>
               <BaseButton type="submit" color="info" label="Submit" />
               <BaseButton color="info" label="Options" outline />
             </BaseButtons>
-          </template>
+          </template> -->
         </CardBox>
       </div>
+      <CardBox>
+        <h2 class="text-lg font-semibold text-red-600 mb-4">
+          회원탈퇴
+        </h2>
+
+        <p class="text-sm text-gray-500 mb-6">
+          회원탈퇴 시 모든 정보가 삭제되며 복구할 수 없습니다.
+        </p>
+
+        <BaseButton
+          color="danger"
+          label="회원탈퇴"
+          @click="withdraw"
+        />
+      </CardBox>
+
     </SectionMain>
   </LayoutAuthenticated>
 </template>

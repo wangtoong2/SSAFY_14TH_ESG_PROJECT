@@ -16,18 +16,21 @@ const props = defineProps({
     type: String,
     default: 'text',
   },
+  // props
   modelValue: {
     type: [String, Number, Boolean, Array, Object],
     default: '',
   },
+
   required: Boolean,
   borderless: Boolean,
   transparent: Boolean,
   ctrlKFocus: Boolean,
 })
-
+// emit
 const emit = defineEmits(['update:modelValue', 'setRef'])
 
+// v-model
 const computedValue = computed({
   get: () => props.modelValue,
   set: (value) => {

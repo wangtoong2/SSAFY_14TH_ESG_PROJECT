@@ -15,7 +15,8 @@ defineProps({
 
 const mainStore = useMainStore()
 
-const items = computed(() => mainStore.clients)
+// const items = computed(() => mainStore.clients)
+const items = ref([])
 
 const isModalActive = ref(false)
 
@@ -27,9 +28,17 @@ const currentPage = ref(0)
 
 const checkedRows = ref([])
 
-const itemsPaginated = computed(() =>
-  items.value.slice(perPage.value * currentPage.value, perPage.value * (currentPage.value + 1)),
-)
+// const itemsPaginated = computed(() =>
+//   items.value.slice(perPage.value * currentPage.value, perPage.value * (currentPage.value + 1)),
+// )
+
+const itemsPaginated = computed(() => {
+  const list = items.value
+  return list.slice(
+    perPage.value * currentPage.value,
+    perPage.value * (currentPage.value + 1)
+  )
+})
 
 const numPages = computed(() => Math.ceil(items.value.length / perPage.value))
 

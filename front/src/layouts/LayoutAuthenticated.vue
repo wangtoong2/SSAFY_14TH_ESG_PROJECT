@@ -1,26 +1,33 @@
 <script setup>
-import { mdiForwardburger, mdiBackburger, mdiMenu } from '@mdi/js'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { menuAsideMain, menuAsideBottom } from '@/menuAside.js'
-import menuNavBar from '@/menuNavBar.js'
-import { useDarkModeStore } from '@/stores/darkMode.js'
+import { mdiForwardburger, mdiBackburger, mdiMenu } from '@mdi/js'
+
+import { useAccountStore } from '@/stores/accounts'
+import { useDarkModeStore } from '@/stores/darkMode'
+
+import { menuAsideMainLogin, menuAsideMainLogout } from '@/menuAside'
+import menuNavBar from '@/menuNavBar'
+
 import BaseIcon from '@/components/BaseIcon.vue'
-import FormControl from '@/components/FormControl.vue'
 import NavBar from '@/components/NavBar.vue'
 import NavBarItemPlain from '@/components/NavBarItemPlain.vue'
 import AsideMenu from '@/components/AsideMenu.vue'
 import FooterBar from '@/components/FooterBar.vue'
-import PremiumVersionBadge from '@/components/PremiumVersionBadge.vue'
 
-const layoutAsidePadding = 'xl:pl-60'
-
+const accountStore = useAccountStore()
 const darkModeStore = useDarkModeStore()
-
 const router = useRouter()
+
+const menuAsideMain = computed(() => {
+  return accountStore.isLogin
+    ? menuAsideMainLogin
+    : menuAsideMainLogout
+})
 
 const isAsideMobileExpanded = ref(false)
 const isAsideLgActive = ref(false)
+const layoutAsidePadding = 'xl:pl-60'
 
 router.beforeEach(() => {
   isAsideMobileExpanded.value = false
@@ -30,13 +37,16 @@ router.beforeEach(() => {
 const menuClick = (event, item) => {
   if (item.isToggleLightDark) {
     darkModeStore.set(null, true)
+    return
   }
 
   if (item.isLogout) {
-    alert('Logout clicked')
+    accountStore.logOut()
+    alert('로그아웃 완료')
   }
 }
 </script>
+
 
 <template>
   <div
@@ -63,7 +73,7 @@ const menuClick = (event, item) => {
           <BaseIcon :path="mdiMenu" size="24" />
         </NavBarItemPlain>
         <NavBarItemPlain use-margin>
-          <FormControl placeholder="Search (ctrl+k)" ctrl-k-focus transparent borderless />
+          <!-- <FormControl placeholder="Search (ctrl+k)" ctrl-k-focus transparent borderless /> -->
         </NavBarItemPlain>
       </NavBar>
       <AsideMenu
@@ -77,7 +87,6 @@ const menuClick = (event, item) => {
       <slot />
       <FooterBar>
         <div class="flex items-center justify-center lg:justify-start">
-          <PremiumVersionBadge />
         </div>
       </FooterBar>
     </div>
