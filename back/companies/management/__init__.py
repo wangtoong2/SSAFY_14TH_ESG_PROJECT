@@ -1,1 +1,1 @@
-"""Management package for companies app."""
+# management package"""Management package for companies app."""

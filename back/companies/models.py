@@ -30,3 +30,17 @@ class CorporateDisclosure(models.Model):
 
     def __str__(self):
         return f"{self.corp_name} - {self.title}"
+
+
+class CompanyProfile(models.Model):
+    """Cached enrichment data for a Company (JSON)."""
+    company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name='profile')
+    data = models.JSONField(blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'CompanyProfile'
+        verbose_name_plural = 'CompanyProfiles'
+
+    def __str__(self):
+        return f"Profile: {self.company.corp_name}"
