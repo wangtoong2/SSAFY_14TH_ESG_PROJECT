@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAccountStore } from '@/stores/accounts';
 
 import ArticleView from '@/views/ArticleView.vue';
-import LogInView from '@/views/LogInView.vue';
+import LogInView from '@/views/LoginView.vue';
 import SignUpView from '@/views/SignUpView.vue';
 import MainView from '@/views/MainView.vue';
 import DetailView from '@/views/DetailView.vue';

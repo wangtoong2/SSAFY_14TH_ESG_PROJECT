@@ -1,7 +1,8 @@
 import datetime
 import json
+import logging
 import os
-from django.utils import timezone
+import time
 from django.conf import settings
 from .models import Company, CompanyProfile
 from .api import get_corporate_disclosure_data
@@ -11,31 +12,49 @@ try:
 except Exception:
     OpenDartReader = None
 
+logger = logging.getLogger(__name__)
+
+
+def _extract_industry_fields_from_raw(raw):
+    """Normalize industry code/name from raw DART company response dict."""
+    if not isinstance(raw, dict):
+        return {}
+    industry_code = None
+    industry_name = None
+    code_candidates = ['induty_code', 'induty_cd', 'industry_cd', 'industry_code', 'indutyCode', 'industryCd']
+    name_candidates = ['induty_nm', 'induty_name', 'industry_nm', 'industry_name', 'biz_tp', 'biz_type']
+    for k in code_candidates:
+        if k in raw and raw.get(k):
+            industry_code = raw.get(k)
+            break
+    for k in name_candidates:
+        if k in raw and raw.get(k):
+            industry_name = raw.get(k)
+            break
+    out = {}
+    if industry_code:
+        out['industry_code'] = industry_code
+    if industry_name:
+        out['industry_name'] = industry_name
+    return out
+
 
 # ESG-specific keyword detection removed per user request
 
 
 def fetch_company_data(corp_name, days=365):
     """
-    주어진 기업명(corp_name)을 바탕으로 DART 공시 데이터를 호출하고
-    추천에 사용할 요약 정보를 반환합니다.
-
-        반환 예시 구조:
-        {
-            'corp_name': '삼성전자',
-            'corp_code': '00126380',
-            'num_disclosures_365d': 12,
-            'latest_disclosures': [ { 'date':'20250101', 'title':'...'}, ... ],
-            'financials': { ... },
-            'company_overview': { ... }
-        }
+    DART 기반 기업 원본 데이터 수집
+    (company_size는 여기서 계산하지 않는다!)
     """
     end = datetime.date.today()
     start = end - datetime.timedelta(days=days)
-    start_str = start.strftime('%Y%m%d')
-    end_str = end.strftime('%Y%m%d')
 
-    resp = get_corporate_disclosure_data(corp_name, start_str, end_str)
+    resp = get_corporate_disclosure_data(
+        corp_name,
+        start.strftime('%Y%m%d'),
+        end.strftime('%Y%m%d')
+    )
 
     result = {
         'corp_name': corp_name,
@@ -44,75 +63,49 @@ def fetch_company_data(corp_name, days=365):
         'latest_disclosures': [],
         'financials': None,
         'company_overview': None,
-        'company_size': None,
+        'company_size': None,      # ❗ placeholder
         'industry_outlook': None,
     }
 
     if not resp or 'error' in resp:
         return result
 
-    # DART search.json returns 'list' with disclosure items
     items = resp.get('list') or []
-
     result['num_disclosures_365d'] = len(items)
 
-    latest = []
-    for it in items[:5]:
-        latest.append({
-            'date': it.get('rcept_dt') or it.get('disclosure_date') or it.get('report_tp'),
-            'title': it.get('report_nm') or it.get('title') or it.get('summary') or it.get('title'),
-            'type': it.get('rpt_nm') or it.get('document_type')
-        })
+    result['latest_disclosures'] = [
+        {
+            'date': it.get('rcept_dt'),
+            'title': it.get('report_nm'),
+            'type': it.get('rpt_nm')
+        }
+        for it in items[:5]
+    ]
 
-    result['latest_disclosures'] = latest
-
-    # try to get corp_code from response list items
     if items and items[0].get('corp_code'):
-        result['corp_code'] = items[0].get('corp_code')
+        result['corp_code'] = items[0]['corp_code']
 
-    # detect ESG related disclosures
-    titles = [d.get('title') or d.get('report_nm') or '' for d in items]
-    # ESG keyword detection removed; titles still stored in `latest_disclosures`
+    # 재무 데이터
+    result['financials'] = fetch_financial_summary(corp_name)
 
-    # attach simple financial summary if OpenDartReader is available
-    try:
-        fin = fetch_financial_summary(corp_name)
-        result['financials'] = fin
-        if fin and fin.get('corp_code') and not result['corp_code']:
-            result['corp_code'] = fin.get('corp_code')
-    except Exception:
-        result['financials'] = None
+    # 기업 개요
+    result['company_overview'] = fetch_company_overview(corp_name)
 
-    # fetch company overview (industry, CEO, addr etc.)
-    try:
-        overview = fetch_company_overview(corp_name)
-        result['company_overview'] = overview
-    except Exception:
-        result['company_overview'] = None
-
-    # classify company size
-    try:
-        result['company_size'] = classify_company_size(result.get('stock_code'), result.get('financials'))
-    except Exception:
-        result['company_size'] = None
-
-    # compute industry outlook
-    try:
-        result['industry_outlook'] = compute_industry_outlook(result.get('financials'), result.get('num_disclosures_365d'))
-    except Exception:
-        result['industry_outlook'] = None
+    # 산업 전망
+    result['industry_outlook'] = compute_industry_outlook(
+        result['financials'],
+        result['num_disclosures_365d']
+    )
 
     return result
-
 
 def _parse_amount(v):
     if v is None:
         return None
     if isinstance(v, (int, float)):
         return v
-    s = str(v)
-    s = s.replace(',', '').replace('\u200b', '').strip()
-    if s == '' or s == '-' or s == '':
+    s = str(v).replace(',', '').strip()
+    if s in ('', '-', 'None'):
         return None
     try:
         return int(float(s))
@@ -121,16 +114,6 @@ def _parse_amount(v):
 
 
 def fetch_financial_summary(corp, latest_years=2):
-    """OpenDartReader로부터 최근 사업연도 재무제표를 가져와 요약합니다.
-
-    반환 예시:
-    {
-      'corp_code': '00126380',
-      'years': { '2024': { 'revenue': 100000, 'operating_income': 5000, 'net_income': 3000 }, ... },
-      'latest_year': 2024,
-      'revenue_growth': 0.12
-    }
-    """
     api_key = getattr(settings, 'DART_API_KEY', None) or os.environ.get('DART_API_KEY')
     if not OpenDartReader or not api_key:
         return None
@@ -141,53 +124,53 @@ def fetch_financial_summary(corp, latest_years=2):
 
     out = {'corp_code': None, 'years': {}, 'latest_year': None, 'revenue_growth': None}
     prev_revenue = None
+
     for y in years:
         try:
             df = odr.finstate_all(corp, bsns_year=y, reprt_code='11011', fs_div='CFS')
         except Exception:
-            df = None
+            continue
 
         if df is None or df.empty:
             continue
 
-        # Try to set corp_code
-        if out['corp_code'] is None and hasattr(df, 'corp_code'):
-            try:
-                out['corp_code'] = df.get('corp_code').iloc[0]
-            except Exception:
-                pass
-
-        # look for common account names
-        def find_amount(df, keywords):
+        def find_amount(keywords):
+            if 'account_nm' not in df.columns:
+                return None
             for kw in keywords:
-                row = df[df['account_nm'].str.contains(kw, na=False)]
+                try:
+                    row = df[df['account_nm'].str.contains(kw, na=False)]
+                except Exception:
+                    continue
                 if not row.empty:
-                    val = row.iloc[0].get('thstrm_amount') or row.iloc[0].get('thstrm_amount')
-                    return _parse_amount(val)
+                    return _parse_amount(row.iloc[0].get('thstrm_amount'))
             return None
 
-        revenue = find_amount(df, ['매출', '수익', '영업수익', '매출액'])
-        operating = find_amount(df, ['영업이익'])
-        net = find_amount(df, ['당기순이익', '순이익', '계속영업이익(손실)'])
+        revenue = find_amount(['매출', '매출액'])
+        operating = find_amount(['영업이익'])
+        net = find_amount(['당기순이익'])
 
-        out['years'][str(y)] = {'revenue': revenue, 'operating_income': operating, 'net_income': net}
+        out['years'][str(y)] = {
+            'revenue': revenue,
+            'operating_income': operating,
+            'net_income': net
+        }
 
-        if prev_revenue is not None and revenue is not None:
-            out['revenue_growth'] = None if prev_revenue in (0, None) else (revenue - prev_revenue) / prev_revenue
+        if prev_revenue not in (None, 0) and revenue is not None:
+            try:
+                out['revenue_growth'] = (revenue - prev_revenue) / prev_revenue
+            except Exception:
+                out['revenue_growth'] = None
 
         prev_revenue = revenue
 
     if out['years']:
-        out['latest_year'] = max(int(k) for k in out['years'].keys())
+        out['latest_year'] = max(map(int, out['years'].keys()))
 
     return out
 
 
 def fetch_company_overview(corp):
-    """Fetch company overview (industry, CEO, addr, etc.) via OpenDartReader/company API.
-
-    Returns a summary dict with common keys and raw response under 'raw'.
-    """
     api_key = getattr(settings, 'DART_API_KEY', None) or os.environ.get('DART_API_KEY')
     if not OpenDartReader or not api_key:
         return None
@@ -206,86 +189,66 @@ def fetch_company_overview(corp):
     if not raw:
         return None
 
-    summary = {}
-    for k in ['corp_code', 'corp_name', 'stock_code', 'ceo_nm', 'addr', 'est_dt', 'induty']:
-        if k in raw:
-            summary[k] = raw.get(k)
+    summary = {
+        'corp_code': raw.get('corp_code'),
+        'corp_name': raw.get('corp_name'),
+        'stock_code': raw.get('stock_code'),
+        'ceo_nm': raw.get('ceo_nm'),
+        'addr': raw.get('addr'),
+        # 기존 호환용 (문자열)
+        'industry': raw.get('induty') or raw.get('industry_nm') or raw.get('biz_type'),
+        # only store raw when it's a valid company payload, not an API error
+        'raw': raw if not (isinstance(raw, dict) and (str(raw.get('status','')).startswith('0') and '사용한도' in str(raw.get('message','')))) else None,
+    }
 
-    # try to extract any industry-like field
-    for k, v in (raw.items() if isinstance(raw, dict) else []):
-        lk = k.lower()
-        if 'ind' in lk or 'industry' in lk or 'biz' in lk:
-            summary.setdefault('industry', v)
-            break
+    # ✅ 여기서 정규화 함수 연결
+    try:
+        norm = _extract_industry_fields_from_raw(raw)
+        summary.update(norm)
+        # → industry_code, industry_name 들어감
+    except Exception:
+        pass
 
-    # fallback candidates
-    for cand in ['induty_code', 'induty_nm', 'induty_cd', 'biz_tp', 'biz_type', 'industry_nm']:
-        if cand in raw and 'industry' not in summary:
-            summary['industry'] = raw.get(cand)
-            break
-
-    summary['raw'] = raw
     return summary
 
 
 def classify_company_size(stock_code, financials):
-    """Classify company size as '중소', '중견', or '대기업'.
-
-    Uses stock_code presence as a hint (listed -> larger) and revenue thresholds when available.
     """
-    # if no financials provided, guess based on listing
-    if not financials:
-        return '대기업' if stock_code else '중소'
+    company_size는 파생 데이터
+    → 정보 부족 시 '중소' ❌ / None ⭕
+    """
 
-    years = financials.get('years') or {}
+    if not stock_code and not financials:
+        return None
+
+    if stock_code and not financials:
+        return '중견'
+
+    years = financials.get('years', {})
     if not years:
-        return '대기업' if stock_code else '중소'
+        return '중견' if stock_code else None
 
     latest = financials.get('latest_year')
     rev = None
     if latest and str(latest) in years:
         rev = years[str(latest)].get('revenue')
-    else:
-        for yv in years.values():
-            if yv.get('revenue'):
-                rev = yv.get('revenue')
-                break
 
     if rev is None:
-        return '대기업' if stock_code else '중소'
+        return '중견' if stock_code else None
 
-    # thresholds in KRW
-    SMALL_MAX = 100_000_000_000  # 1,000억
-    LARGE_MIN = 1_000_000_000_000  # 1조
-
-    try:
-        if rev >= LARGE_MIN:
-            return '대기업'
-        if rev >= SMALL_MAX:
-            return '중견'
-        return '중소'
-    except Exception:
+    if rev >= 1_000_000_000_000:
+        return '대기업'
+    elif rev >= 100_000_000_000:
+        return '중견'
+    else:
         return '중소'
 
 
 def compute_industry_outlook(financials, num_disclosures):
-    """단순 휴리스틱으로 산업 전망 점수/라벨 산출 (ESG 요소 제외).
+    rev_growth = financials.get('revenue_growth', 0.0) if financials else 0.0
+    rev_growth = max(min(rev_growth or 0.0, 1.0), -1.0)
 
-    score = 0.7 * revenue_growth + 0.3 * disclosure_factor
-    - revenue_growth: -1..+inf (clamped to [-1,1])
-    - disclosure_factor: min(num_disclosures/10, 1)
-    라벨: score > 0.1 -> '긍정적', score < -0.05 -> '부정적', else '중립'
-    """
-    rev_growth = 0.0
-    if financials and financials.get('revenue_growth') is not None:
-        try:
-            rev_growth = float(financials.get('revenue_growth'))
-        except Exception:
-            rev_growth = 0.0
-
-    rev_growth = max(min(rev_growth, 1.0), -1.0)
-    disclosure_factor = min(num_disclosures / 10.0, 1.0) if num_disclosures is not None else 0.0
-
+    disclosure_factor = min((num_disclosures or 0) / 10.0, 1.0)
     score = 0.7 * rev_growth + 0.3 * disclosure_factor
 
     if score > 0.1:
@@ -299,26 +262,37 @@ def compute_industry_outlook(financials, num_disclosures):
 
 
 def fetch_all_companies_to_file(output_path='companies_dart_cache.json'):
-    """데이터베이스의 `Company` 전체를 순회하며 DART 요약을 호출하고 파일로 저장합니다."""
-    qs = Company.objects.all()
+    qs = Company.objects.select_related('profile').all()
+    total = qs.count()
     out = []
-    for c in qs:
-        try:
-            data = fetch_company_data(c.corp_name)
-            data['stock_code'] = c.stock_code
-            out.append(data)
-            # save to DB cache (upsert CompanyProfile)
+    err_path = os.path.join(os.getcwd(), 'fetch_dart_errors.log')
+    with open(err_path, 'a', encoding='utf-8') as err_log:
+        for idx, c in enumerate(qs, 1):
             try:
-                if c.profile_id or hasattr(c, 'profile'):
-                    # update existing
+                print(f"[{idx}/{total}] {c.corp_name}")
+                data = fetch_company_data(c.corp_name)
+
+                # ensure stock_code and recompute company_size
+                data['stock_code'] = c.stock_code
+                try:
+                    data['company_size'] = classify_company_size(c.stock_code, data.get('financials'))
+                except Exception:
+                    data['company_size'] = data.get('company_size')
+
+                try:
                     CompanyProfile.objects.update_or_create(company=c, defaults={'data': data})
-                else:
-                    CompanyProfile.objects.update_or_create(company=c, defaults={'data': data})
-            except Exception:
-                # ignore DB cache failures but continue
-                pass
-        except Exception as e:
-            out.append({'corp_name': c.corp_name, 'error': str(e)})
+                except Exception as db_e:
+                    err_log.write(f"DB error {c.corp_name}: {db_e}\n")
+                    err_log.flush()
+                    logger.exception("DB save error for %s", c.corp_name)
+
+                out.append(data)
+                time.sleep(0.05)
+            except Exception as e:
+                err_log.write(f"Fetch error {c.corp_name}: {e}\n")
+                err_log.flush()
+                logger.exception("Fetch error for %s", c.corp_name)
+                out.append({'corp_name': c.corp_name, 'error': str(e)})
 
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
@@ -459,42 +433,33 @@ def score_company_for_user(prefs, company_data):
     return score, breakdown
 
 
-def recommend_companies(prefs, top_n=10, use_db_cache=True):
-    """Return top-N companies matching `prefs`.
-
-    prefs: see `score_company_for_user` for keys.
-    use_db_cache: if True, read `CompanyProfile.data` for ranking; otherwise calls `fetch_company_data` live.
-
-    Returns list of dicts: { 'company_id', 'corp_name', 'score', 'breakdown', 'profile' }
-    """
+def recommend_companies(prefs, top_n=10):
     results = []
-    qs = Company.objects.all()
-    for c in qs:
-        profile = None
-        if use_db_cache:
-            try:
-                profile = getattr(c, 'profile').data if hasattr(c, 'profile') and c.profile is not None else None
-            except Exception:
-                profile = None
 
-        if not profile:
-            try:
-                profile = fetch_company_data(c.corp_name)
-            except Exception:
-                profile = None
-
+    qs = Company.objects.select_related('profile').all()
+    for c in qs.iterator():
+        profile = getattr(c, 'profile', None)
         if not profile:
             continue
 
-        score, breakdown = score_company_for_user(prefs, profile)
+        data = profile.data or {}
+
+        # ensure company_size available
+        if data.get('company_size') is None:
+            try:
+                data['company_size'] = classify_company_size(c.stock_code, data.get('financials'))
+            except Exception:
+                data['company_size'] = None
+
+        score, breakdown = score_company_for_user(prefs, data)
         results.append({
             'company_id': c.id,
             'corp_name': c.corp_name,
+            'company_size': data.get('company_size'),
             'score': score,
             'breakdown': breakdown,
-            'profile': profile,
+            'profile': data,
         })
 
-    # sort by score desc
     results.sort(key=lambda x: x['score'], reverse=True)
     return results[:top_n]

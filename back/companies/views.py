@@ -39,12 +39,37 @@ def get_company_recommendations(request):
 from django.http import JsonResponse
 from .api import get_all_corporate_disclosure_data
 
+from .api import fetch_disclosures_for_company, find_corp_code_by_name
+
+
+def fetch_company_on_demand(request):
+    """
+    Endpoint to fetch disclosures for a single company on-demand.
+    Query params: corp_name (required), start (YYYYMMDD, optional), end (YYYYMMDD, optional)
+    """
+    corp_name = request.GET.get('corp_name') or request.POST.get('corp_name')
+    if not corp_name:
+        return JsonResponse({'error': 'corp_name query parameter is required'}, status=400)
+
+    start = request.GET.get('start') or request.POST.get('start')
+    end = request.GET.get('end') or request.POST.get('end')
+    # default last 1 year if not provided
+    if not end:
+        end = datetime.today().strftime('%Y%m%d')
+    if not start:
+        start_dt = datetime.strptime(end, '%Y%m%d') - relativedelta(years=1)
+        start = start_dt.strftime('%Y%m%d')
+
+    # attempt fetch and save
+    result = fetch_disclosures_for_company(corp_name, start, end)
+    return JsonResponse(result)
+
 def fetch_and_save_all_data(request):
     """
     전체 기업의 공시 데이터를 가져와 DB에 저장합니다.
     """
     start_date = '20220101'  # 예시: 시작일
-    end_date = '20251215'    # 예시: 종료일
+    end_date = '20221215'    # 예시: 종료일
 
     # 전체 데이터 가져오기
     get_all_corporate_disclosure_data(start_date, end_date)

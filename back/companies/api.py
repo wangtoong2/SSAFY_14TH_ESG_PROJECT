@@ -1,13 +1,16 @@
 import requests
 import os
+import time
 from dotenv import load_dotenv
 from django.db import models
 from .models import CorporateDisclosure  # 모델 임포트 (다른 파일에 정의된 모델)
 
 load_dotenv()
 
+# prefer environment / Django settings for API key
 DART_API_KEY = os.getenv('DART_API_KEY')
-URL = f'http://dart.fss.or.kr/api/search.json'
+# Use the official OpenDART HTTPS endpoint
+URL = 'https://opendart.fss.or.kr/api/list.json'
 
 
 def get_all_corporate_disclosure_data(start_date, end_date):
@@ -16,54 +19,64 @@ def get_all_corporate_disclosure_data(start_date, end_date):
     :param start_date: 시작일 (YYYYMMDD)
     :param end_date: 종료일 (YYYYMMDD)
     """
-    page_count = 10  # 페이지당 공시 건수
+    page_count = 100  # increase page size to reduce number of requests
     page_num = 1     # 페이지 번호
+
+    session = requests.Session()
+    headers = {'User-Agent': 'SSAFY-ESG-Project/1.0 (+https://example.com)'}
 
     while True:
         params = {
-            'crtfc_key': DART_API_KEY,  # API 키
-            'corp_name': '',             # 모든 기업 데이터
-            'bgn_de': start_date,        # 시작일
-            'end_de': end_date,          # 종료일
-            'page_count': page_count,    # 페이지당 공시 건수
-            'page_num': page_num        # 페이지 번호
+            'crtfc_key': DART_API_KEY,
+            'corp_code': '',
+            'bgn_de': start_date,
+            'end_de': end_date,
+            'page_count': page_count,
+            'page_no': page_num,
         }
 
-        # DART API 요청
-        response = requests.get(URL, params=params)
+        try:
+            response = session.get(URL, params=params, headers=headers, timeout=30)
+        except Exception as e:
+            print(f"Request exception: {e}")
+            break
 
-        # 응답 상태 코드 확인
-        if response.status_code == 200:
-            print("Request was successful.")
-            print("Response content:", response.text)  # 응답 내용을 출력하여 확인
+        if response.status_code != 200:
+            print(f"Failed to fetch data. Status code: {response.status_code}")
+            print(response.text[:1000])
+            break
 
+        # try parse JSON
+        try:
+            data = response.json()
+        except ValueError:
+            # empty or invalid JSON
+            print("Error: Response is not valid JSON or empty")
+            print("Response snippet:", response.text[:1000])
+            break
+
+        if not data.get('list'):
+            print("No more data to fetch or empty 'list'.")
+            break
+
+        # 데이터 처리 및 DB에 저장
+        for item in data['list']:
             try:
-                data = response.json()  # JSON 형식으로 응답을 파싱
-            except requests.exceptions.JSONDecodeError:
-                print("Error: Response is not in JSON format or empty response")
-                break
-
-            if not data.get('list'):  # 데이터가 없으면 종료
-                print("No more data to fetch.")
-                break
-
-            # 데이터 처리 및 DB에 저장
-            for item in data['list']:
                 disclosure = CorporateDisclosure(
-                    corp_name=item['corp_name'],
-                    disclosure_date=item['disclosure_date'],
-                    document_type=item['document_type'],
-                    title=item['title'],
-                    url=item['url']
+                    corp_name=item.get('corp_name') or item.get('corpName'),
+                    disclosure_date=item.get('rcept_dt') or item.get('disclosure_date'),
+                    document_type=item.get('report_tp') or item.get('document_type'),
+                    title=item.get('report_nm') or item.get('title'),
+                    url=item.get('url')
                 )
                 disclosure.save()
+            except Exception:
+                # skip problematic items
+                continue
 
-            # 다음 페이지로 넘어가기
-            page_num += 1
-        else:
-            print(f"Failed to fetch data. Status code: {response.status_code}")
-            print("Response content:", response.text)  # 실패한 응답의 내용을 출력
-            break
+        page_num += 1
+        # be gentle with the API
+        time.sleep(0.1)
 
     print("Data fetching and saving completed.")
 

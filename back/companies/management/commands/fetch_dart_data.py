@@ -1,5 +1,8 @@
 from django.core.management.base import BaseCommand
 from companies.services import fetch_all_companies_to_file
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -12,7 +15,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         out = options.get('out')
         save_db = options.get('save_db')
-        path = fetch_all_companies_to_file(output_path=out)
-        self.stdout.write(self.style.SUCCESS(f'Wrote DART data to {path}'))
-        if save_db:
-            self.stdout.write(self.style.NOTICE('Saved per-company cache to DB (CompanyProfile).'))
+        try:
+            path = fetch_all_companies_to_file(output_path=out)
+            self.stdout.write(self.style.SUCCESS(f'Wrote DART data to {path}'))
+            if save_db:
+                self.stdout.write(self.style.SUCCESS('Saved per-company cache to DB (CompanyProfile).'))
+        except Exception as e:
+            logger.exception('Failed to fetch and save DART data')
+            self.stderr.write(self.style.ERROR(f'Error: {e}'))
