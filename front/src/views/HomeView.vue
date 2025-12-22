@@ -44,12 +44,12 @@ const transactionBarItems = computed(() => mainStore.history)
 <template>
   <LayoutAuthenticated>
     <SectionMain>
-      <SectionTitleLineWithButton :icon="mdiChartTimelineVariant" title="Overview" main>
+      <SectionTitleLineWithButton :icon="mdiChartTimelineVariant" title="주간 추천 기업" main>
         <BaseButton
           href="https://github.com/justboil/admin-one-vue-tailwind"
           target="_blank"
           :icon="mdiGithub"
-          label="Star on GitHub"
+          label="더보기로 링크변경"
           color="contrast"
           rounded-full
           small
