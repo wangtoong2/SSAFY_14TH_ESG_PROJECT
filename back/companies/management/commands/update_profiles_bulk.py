@@ -50,14 +50,35 @@ class Command(BaseCommand):
                     if not data:
                         data = fetch_company_data(c.corp_name)
 
-                    # if still missing overview or financials, try explicit calls
-                    if (not data.get('company_overview')) and c.corp_code:
+                    # Ensure canonical corp_name stored from DB
+                    try:
+                        data['corp_name'] = c.corp_name
+                    except Exception:
+                        pass
+
+                    # if overview is missing/invalid, force corp_code-based overview
+                    overview = data.get('company_overview') if isinstance(data, dict) else None
+                    raw = overview.get('raw') if isinstance(overview, dict) else None
+                    raw_status = raw.get('status') if isinstance(raw, dict) else None
+                    raw_message = raw.get('message') if isinstance(raw, dict) else None
+                    overview_invalid = (not isinstance(overview, dict)) or (raw_status and raw_status != '000')
+                    if isinstance(raw_message, str) and 'corp_code' in raw_message:
+                        overview_invalid = True
+
+                    # also refetch if key enrichment fields are missing
+                    if isinstance(overview, dict):
+                        if not (overview.get('industry_code') or overview.get('addr') or overview.get('region')):
+                            overview_invalid = True
+
+                    if (overview_invalid) and c.corp_code:
                         try:
                             ov = fetch_company_overview(c.corp_code)
                             if ov:
                                 data['company_overview'] = ov
                         except Exception:
                             pass
+
+                    # if still missing financials, try corp_code explicitly
                     if (not data.get('financials')) and c.corp_code:
                         try:
                             fin = fetch_financial_summary(c.corp_code)
@@ -81,7 +102,24 @@ class Command(BaseCommand):
                             else:
                                 existing = {}
                             merged = existing.copy()
+                            # 기본 정책: None은 기존 값을 덮어쓰지 않는다.
                             merged.update({k: v for k, v in data.items() if v is not None})
+
+                            # 하지만 '없으면 null로 두고 넘어가'가 필요한 키들은,
+                            # 기존에 키가 아예 없을 때는 None이라도 명시적으로 채워서 스키마를 안정화한다.
+                            required_nullable_keys = [
+                                'corp_name',
+                                'corp_code',
+                                'stock_code',
+                                'financials',
+                                'company_size',
+                                'industry_outlook',
+                                'num_disclosures_365d',
+                                'latest_disclosures',
+                            ]
+                            for k in required_nullable_keys:
+                                if k not in merged:
+                                    merged[k] = data.get(k)
                             # deep merge company_overview
                             existing_co = (existing.get('company_overview') or {}) if isinstance(existing, dict) else {}
                             new_co = (data.get('company_overview') or {}) if isinstance(data, dict) else {}

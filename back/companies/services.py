@@ -16,6 +16,46 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 
+def extract_region_from_address(addr):
+    """Extract a top-level region (시/도) from a Korean address string.
+
+    Examples:
+      - '서울특별시 강남구 ...' -> '서울특별시'
+      - '경기도 성남시 ...' -> '경기도'
+      - '세종특별자치시 ...' -> '세종특별자치시'
+    """
+    if not addr:
+        return None
+    try:
+        first = str(addr).strip().split()[0]
+    except Exception:
+        return None
+    if not first:
+        return None
+
+    # Normalize common city/province names
+    mapping_prefix = {
+        '서울': '서울특별시',
+        '부산': '부산광역시',
+        '대구': '대구광역시',
+        '인천': '인천광역시',
+        '광주': '광주광역시',
+        '대전': '대전광역시',
+        '울산': '울산광역시',
+        '세종': '세종특별자치시',
+        '제주': '제주특별자치도',
+    }
+    for k, v in mapping_prefix.items():
+        if first.startswith(k):
+            return v
+
+    # If it already looks like a full region, return as-is
+    if any(suffix in first for suffix in ['특별자치시', '특별자치도', '광역시', '특별시']) or first.endswith('도'):
+        return first
+
+    return first
+
+
 def _extract_industry_fields_from_raw(raw):
     """Normalize industry code/name from raw DART company response dict."""
     if not isinstance(raw, dict):
@@ -77,8 +117,11 @@ def fetch_company_data(corp_name, days=365):
         end.strftime('%Y%m%d')
     )
 
+    is_corp_code = isinstance(corp_name, str) and corp_name.isdigit() and len(corp_name) == 8
+
     result = {
-        'corp_name': corp_name,
+        # corp_code로 호출될 수 있으므로, 실제 기업명은 overview에서 채우는 것을 우선한다.
+        'corp_name': None if is_corp_code else corp_name,
         'corp_code': None,
         'num_disclosures_365d': 0,
         'latest_disclosures': [],
@@ -114,6 +157,14 @@ def fetch_company_data(corp_name, days=365):
 
     # 기업 개요
     result['company_overview'] = fetch_company_overview(corp_name)
+
+    # overview가 실제 기업명을 주면 top-level에도 반영
+    try:
+        ov_name = (result.get('company_overview') or {}).get('corp_name')
+        if ov_name:
+            result['corp_name'] = ov_name
+    except Exception:
+        pass
 
     # 산업 전망
     result['industry_outlook'] = compute_industry_outlook(
@@ -244,7 +295,8 @@ def fetch_company_overview(corp):
         'corp_name': raw.get('corp_name'),
         'stock_code': raw.get('stock_code'),
         'ceo_nm': raw.get('ceo_nm'),
-        'addr': raw.get('addr'),
+        # DART company.json uses 'adres'
+        'addr': raw.get('addr') or raw.get('adres'),
         # 기존 호환용 (문자열)
         'industry': raw.get('induty') or raw.get('industry_nm') or raw.get('biz_type'),
         # only store raw when it's a valid company payload, not an API error
@@ -258,6 +310,13 @@ def fetch_company_overview(corp):
         # → industry_code, industry_name 들어감
     except Exception:
         pass
+
+    # 지역 추출 (주소의 시/도 레벨)
+    try:
+        addr = summary.get('addr')
+        summary['region'] = extract_region_from_address(addr) if addr else None
+    except Exception:
+        summary['region'] = None
 
     return summary
 

@@ -1,16 +1,25 @@
-import requests
-import os
+import datetime
 import time
-from dotenv import load_dotenv
-from django.db import models
-from .models import CorporateDisclosure  # 모델 임포트 (다른 파일에 정의된 모델)
 
-load_dotenv()
+import requests
+from django.conf import settings
 
-# prefer environment / Django settings for API key
-DART_API_KEY = os.getenv('DART_API_KEY')
+from .models import CorporateDisclosure
 # Use the official OpenDART HTTPS endpoint
 URL = 'https://opendart.fss.or.kr/api/list.json'
+
+
+def _get_dart_api_key():
+    return getattr(settings, 'DART_API_KEY', None)
+
+
+def _parse_yyyymmdd(s):
+    if not s:
+        return None
+    try:
+        return datetime.datetime.strptime(str(s), '%Y%m%d').date()
+    except Exception:
+        return None
 
 
 def get_all_corporate_disclosure_data(start_date, end_date):
@@ -27,7 +36,7 @@ def get_all_corporate_disclosure_data(start_date, end_date):
 
     while True:
         params = {
-            'crtfc_key': DART_API_KEY,
+            'crtfc_key': _get_dart_api_key(),
             'corp_code': '',
             'bgn_de': start_date,
             'end_de': end_date,
@@ -62,9 +71,10 @@ def get_all_corporate_disclosure_data(start_date, end_date):
         # 데이터 처리 및 DB에 저장
         for item in data['list']:
             try:
+                disclosure_date = _parse_yyyymmdd(item.get('rcept_dt')) or item.get('disclosure_date')
                 disclosure = CorporateDisclosure(
                     corp_name=item.get('corp_name') or item.get('corpName'),
-                    disclosure_date=item.get('rcept_dt') or item.get('disclosure_date'),
+                    disclosure_date=disclosure_date,
                     document_type=item.get('report_tp') or item.get('document_type'),
                     title=item.get('report_nm') or item.get('title'),
                     url=item.get('url')
@@ -84,18 +94,24 @@ def get_all_corporate_disclosure_data(start_date, end_date):
 def get_corporate_disclosure_data(corp_name, start_date, end_date):
     """
     단일 기업에 대해 DART API 호출하여 공시 데이터를 가져옵니다.
-    :param corp_name: 기업명
+    :param corp_name: 기업명 또는 corp_code(8자리)
     :param start_date: 시작일 (YYYYMMDD)
     :param end_date: 종료일 (YYYYMMDD)
     :return: JSON 형태의 공시 데이터
     """
     params = {
-        'crtfc_key': DART_API_KEY,  # API 키
-        'corp_name': corp_name,     # 조회할 기업명
+        'crtfc_key': _get_dart_api_key(),  # API 키
         'bgn_de': start_date,       # 시작일
         'end_de': end_date,         # 종료일
         'page_count': 10,           # 페이지당 공시 건수
     }
+
+    # DART list API supports both corp_name and corp_code.
+    corp = corp_name
+    if isinstance(corp, str) and corp.isdigit() and len(corp) == 8:
+        params['corp_code'] = corp
+    else:
+        params['corp_name'] = corp
 
     # DART API 요청
     response = requests.get(URL, params=params)

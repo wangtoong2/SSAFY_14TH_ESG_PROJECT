@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from .models import CorporateDisclosure
+
 
 class PreferencesSerializer(serializers.Serializer):
     desired_industries = serializers.ListField(child=serializers.CharField(), required=False)
@@ -9,8 +11,7 @@ class PreferencesSerializer(serializers.Serializer):
     keywords = serializers.ListField(child=serializers.CharField(), required=False)
     min_growth = serializers.FloatField(required=False)
     weights = serializers.DictField(child=serializers.FloatField(), required=False)
-from rest_framework import serializers
-from .models import CorporateDisclosure
+
 
 class CorporateDisclosureSerializer(serializers.ModelSerializer):
     class Meta:
