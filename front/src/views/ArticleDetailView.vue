@@ -17,15 +17,20 @@ const API_URL = 'http://127.0.0.1:8000/api/v1'
 const route = useRoute()
 const router = useRouter()
 const accountStore = useAccountStore()
+const commentContent = ref('')
 
 const article = ref(null)
+const comments = ref([])
 
 /* ========================
    데이터 로드
 ======================== */
 onMounted(async () => {
+  console.log('mounted')
   const res = await axios.get(`${API_URL}/articles/${route.params.id}/`)
   article.value = res.data
+
+  await fetchComments()
 })
 
 /* ========================
@@ -87,10 +92,38 @@ const deleteArticle = async () => {
     alert('삭제에 실패했습니다.')
   }
 }
+
+const createComment = async () => {
+  console.log('clicked')
+  console.log(accountStore.token)
+  await axios.post(
+    `${API_URL}/articles/${route.params.id}/comments/`,
+    { content: commentContent.value },
+    {
+      headers: {
+        Authorization: `Token ${accountStore.token}`,
+      },
+    }
+  )
+  commentContent.value = ''
+  fetchComments()
+}
+
+// 댓글 불러오는 함수
+const fetchComments = async () => {
+  const res = await axios.get(
+    `${API_URL}/articles/${route.params.id}/comments/`
+  )
+  comments.value = res.data
+}
+
+
 </script>
 
 <template>
   <LayoutAuthenticated>
+    <h1>🔥 ArticleDetailView</h1>
+
     <SectionMain>
       <div v-if="article">
         <!-- 제목 -->
@@ -108,6 +141,19 @@ const deleteArticle = async () => {
           {{ article.content }}
         </div>
 
+        <div class="mt-6">
+          <h3 class="font-bold mb-2">댓글</h3>
+
+          <div v-for="comment in comments" :key="comment.id" class="border-b py-2">
+            <p class="text-sm text-gray-600">
+              {{ comment.user }} ·
+              {{ new Date(comment.created_at).toLocaleString() }}
+            </p>
+            <p>{{ comment.content }}</p>
+          </div>
+        </div>
+
+
         <!-- 내 글일 때만 버튼 표시 -->
         <BaseButtons v-if="isMyArticle">
           <BaseButton
@@ -121,6 +167,10 @@ const deleteArticle = async () => {
             @click="deleteArticle"
           />
         </BaseButtons>
+
+        <textarea v-model="commentContent" />
+        <button @click="createComment">댓글 작성</button>
+
       </div>
     </SectionMain>
   </LayoutAuthenticated>

@@ -1,13 +1,20 @@
 from django.urls import path, include
-from .views import GoogleLogin
+from .views import GoogleLogIn, withdraw_user
+from . import views
 
 urlpatterns = [
-    # 경로 이후 custom하기
     # 로그인
-    path('dj-rest-auth/', include('dj_rest_auth.urls')),
+    path('', include('dj_rest_auth.urls')),
     # 회원가입
-    path('dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
-    # 소셜 로그인
-    path('dj-rest-auth/google/', GoogleLogin.as_view(), name='google_login'),
     
+    # 회원탈퇴
+    path('withdraw/', withdraw_user, name='account-withdraw'),
+
+    # 소셜 로그인
+    path('google/', GoogleLogIn.as_view(), name='google_login'),
+    
+
+    # path('follow/<int:user_id>/', views.follow_user, name='follow_user'),
+    # path('unfollow/<int:user_id>/', views.unfollow_user, name='unfollow_user'),
+
 ]

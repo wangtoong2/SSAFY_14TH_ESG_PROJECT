@@ -75,24 +75,34 @@ export const useAccountStore = defineStore(
     }
 
     /* ================= 회원탈퇴 (프론트 전용) ================= */
+    // stores/accounts.js
     const withdraw = async () => {
-      const ok = confirm(
-        '정말 회원탈퇴 하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'
-      )
+      const ok = confirm('정말 회원탈퇴 하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')
       if (!ok) return
 
-      token.value = null
-      userName.value = ''
+      try {
+        await axios.delete(`${API_URL}/accounts/withdraw/`, {
+          headers: {
+            Authorization: `Token ${token.value}`,
+          },
+        })
 
-      const mainStore = useMainStore()
-      mainStore.setUser({ name: 'Guest', email: '' })
+        // 🔥 프론트 상태 정리
+        token.value = null
+        userName.value = ''
 
-      delete axios.defaults.headers.common.Authorization
-      localStorage.removeItem('account')
+        delete axios.defaults.headers.common.Authorization
+        localStorage.removeItem('account')
 
-      alert('회원탈퇴가 완료되었습니다.')
-      router.push({ name: 'login' })
+        alert('회원탈퇴가 완료되었습니다.')
+        router.push({ name: 'login' })
+
+      } catch (err) {
+        console.error(err.response?.data || err)
+        alert('회원탈퇴에 실패했습니다.')
+      }
     }
+
 
     return {
       signUp,

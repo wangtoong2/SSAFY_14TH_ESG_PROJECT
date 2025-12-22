@@ -17,9 +17,6 @@ import { useAccountStore } from '@/stores/accounts'
 
 const accountStore = useAccountStore()
 
-const withdraw = () => {
-  accountStore.withdraw()
-}
 const mainStore = useMainStore()
 
 const profileForm = reactive({
@@ -83,6 +80,10 @@ const filterResults = () => {
   }
 }
 
+
+const withdraw = () => {
+  accountStore.withdraw()
+}
 </script>
 
 <template>
