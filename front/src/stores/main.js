@@ -6,13 +6,16 @@ export const useMainStore = defineStore('main', () => {
   const userName = ref('Guest')
   const userEmail = ref('')
 
-  const userAvatar = computed(
-    () =>
-      `https://api.dicebear.com/7.x/avataaars/svg?seed=${userEmail.value.replace(
-        /[^a-z0-9]+/gi,
-        '-',
-      )}`,
-  )
+  // const userAvatar = computed(
+  //   () =>
+  //     `https://api.dicebear.com/7.x/avataaars/svg?seed=${userEmail.value.replace(
+  //       /[^a-z0-9]+/gi,
+  //       '-',
+  //     )}`,
+  // )
+
+  
+  const userAvatarUrl = ref(null)
 
   const isFieldFocusRegistered = ref(false)
 
@@ -20,24 +23,33 @@ export const useMainStore = defineStore('main', () => {
   const history = ref([])
 
   function setUser(payload) {
-    if (payload.name) {
+    if (payload.name !== undefined) {
       userName.value = payload.name
     }
-    if (payload.email) {
+    if (payload.email !== undefined) {
       userEmail.value = payload.email
+    }
+    if (payload.avatar !== undefined) {
+      userAvatarUrl.value = payload.avatar
+      console.log('✅ mainStore avatar set:', payload.avatar)
     }
   }
 
-  function fetchSampleClients() {
-    axios
-      .get(`data-sources/clients.json?v=3`)
-      .then((result) => {
-        clients.value = result?.data?.data
-      })
-      .catch((error) => {
-        alert(error.message)
-      })
-  }
+
+function fetchSampleClients() {
+  axios
+    .get(`data-sources/clients.json?v=3`)
+    .then((result) => {
+      clients.value = Array.isArray(result?.data?.data)
+        ? result.data.data
+        : []
+    })
+    .catch((error) => {
+      console.error(error)
+      clients.value = []   // ⭐ 실패해도 배열 유지
+    })
+}
+
 
   function fetchSampleHistory() {
     axios
@@ -53,7 +65,8 @@ export const useMainStore = defineStore('main', () => {
   return {
     userName,
     userEmail,
-    userAvatar,
+    // userAvatar,
+    setUser,
     isFieldFocusRegistered,
     clients,
     history,

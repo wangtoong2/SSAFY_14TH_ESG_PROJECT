@@ -22,6 +22,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth import authenticate
 
 @api_view(['DELETE'])
 @authentication_classes([TokenAuthentication])
@@ -43,3 +45,37 @@ def withdraw_user(request):
         {'detail': '회원 탈퇴가 완료되었습니다.'},
         status=status.HTTP_200_OK
     )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    user = request.user
+
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+
+    if not user.check_password(old_password):
+        return Response({'detail': '현재 비밀번호가 틀렸습니다.'}, status=400)
+
+    validate_password(new_password, user)
+
+    user.set_password(new_password)
+    user.save()
+
+    return Response({'detail': '비밀번호 변경 완료'})
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def avatar_update(request):
+    user = request.user
+    avatar = request.FILES.get('avatar')
+
+    if not avatar:
+        return Response({'detail': 'No avatar'}, status=400)
+
+    user.avatar = avatar
+    user.save()
+
+    return Response({
+        'avatar': user.avatar.url
+    })

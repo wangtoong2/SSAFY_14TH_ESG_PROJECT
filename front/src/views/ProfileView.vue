@@ -1,5 +1,5 @@
 <script setup>
-import { reactive,ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 import { useMainStore } from '@/stores/main'
 import { mdiAccount, mdiMail, mdiAsterisk, mdiFormTextboxPassword, mdiGithub } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
@@ -14,14 +14,55 @@ import UserCard from '@/components/UserCard.vue'
 import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import { useAccountStore } from '@/stores/accounts'
+import axios from 'axios'
 
 const accountStore = useAccountStore()
 
 const mainStore = useMainStore()
 
+const avatarFile = ref(null)
+const selectedAvatar = ref(null)
+
+const onAvatarChange = (file) => {
+  selectedAvatar.value = file
+  console.log('선택된 아바타:', file)
+}
+
+const avatarPreview = computed(() => {
+  if (!selectedAvatar.value) return null
+  return URL.createObjectURL(selectedAvatar.value)
+})
+
+const uploadAvatar = async () => {
+  if (!selectedAvatar.value) return
+
+  const formData = new FormData()
+  formData.append('avatar', selectedAvatar.value)
+
+  const res = await axios.patch(
+    'http://127.0.0.1:8000/accounts/user/avatar/',
+    formData,
+    {
+      headers: {
+        Authorization: `Token ${accountStore.token}`,
+      },
+    }
+  )
+
+  // ⭐⭐⭐ 여기 ⭐⭐⭐
+  mainStore.setUser({
+    avatar: res.data.avatar,
+  })
+
+  alert('아바타가 변경되었습니다.')
+}
+
+
+
+
 const profileForm = reactive({
-  name: mainStore.userName,
-  email: mainStore.userEmail,
+  name: accountStore.userName,
+  email: '',
   phonenumber : mainStore.userPhonenumber || '',
   gender : mainStore.userGender || '',
   // || => 없으면 빈 문자열
@@ -37,16 +78,76 @@ const passwordForm = reactive({
 
 
 // 프로필 업데이트 제출 함수
-const submitProfile = () => {
-  // 프로필 정보를 mainStore에 저장
-  mainStore.setUser(profileForm)
-  console.log('프로필 업데이트:', profileForm)
+const submitProfile = async () => {
+  try {
+    const res = await axios.patch(
+      'http://127.0.0.1:8000/accounts/user/',
+      {
+        username: profileForm.name,   // ⭐ 필수
+        email: profileForm.email,
+        phone_number: profileForm.phonenumber,
+        gender: profileForm.gender,
+        interests: profileForm.Interest,
+      },
+      {
+        headers: {
+          Authorization: `Token ${accountStore.token}`,
+        },
+      }
+    )
+
+    // 프론트 store 동기화
+    accountStore.userName = res.data.username
+    mainStore.setUser({
+      name: res.data.username,
+      email: res.data.email,
+    })
+
+    alert('프로필이 수정되었습니다.')
+  } catch (err) {
+    console.error(err.response?.data || err)
+    alert('프로필 수정 실패')
+  }
 }
 
-// 비밀번호 변경 제출 함수
-const submitPass = () => {
-  // 비밀번호 변경 로직 작성 예정
+
+// 비밀번호 변경 함수
+const submitPass = async () => {
+  if (passwordForm.password !== passwordForm.password_confirmation) {
+    alert('비밀번호가 일치하지 않습니다.')
+    return
+  }
+
+  try {
+    await axios.post(
+      'http://127.0.0.1:8000/accounts/password/change/custom/',
+      {
+        old_password: passwordForm.password_current,
+        new_password: passwordForm.password,
+      },
+      {
+        headers: {
+          Authorization: `Token ${accountStore.token}`,
+        },
+      }
+    )
+
+    alert('비밀번호가 변경되었습니다. 다시 로그인해주세요.')
+    accountStore.logOut()
+  } catch (err) {
+    const data = err.response?.data
+
+    if (data?.detail) {
+      alert(data.detail)
+    } else {
+      alert('비밀번호 변경에 실패했습니다.')
+    }
+
+    console.error(data || err)
+  }
 }
+
+
 
 // 관심분야 예시
 const allInterests = [
@@ -80,10 +181,50 @@ const filterResults = () => {
   }
 }
 
+const removeInterest = (interest) => {
+  profileForm.Interest = profileForm.Interest.filter(
+    i => i !== interest
+  )
+}
+
 
 const withdraw = () => {
   accountStore.withdraw()
 }
+
+onMounted(async () => {
+  console.log('EMAIL:', profileForm.email, typeof profileForm.email)
+  try {
+    const res = await axios.get(
+      'http://127.0.0.1:8000/accounts/user/',
+      {
+        headers: {
+          Authorization: `Token ${accountStore.token}`,
+        },
+      }
+    )
+
+    // 1️⃣ form 채우기
+    profileForm.name = res.data.username
+    profileForm.email = res.data.email
+    profileForm.phonenumber = res.data.phone_number || ''
+    profileForm.gender = res.data.gender || ''
+    profileForm.Interest = res.data.interests || []
+
+    // 2️⃣ store 동기화 (중요)
+    accountStore.userName = res.data.username
+    mainStore.setUser({
+      name: res.data.username,
+      email: res.data.email,
+      userPhonenumber: res.data.phone_number,
+      userGender: res.data.gender,
+      avatar : res.data.avatar,
+    })
+
+  } catch (err) {
+    console.error(err)
+  }
+})
 </script>
 
 <template>
@@ -106,8 +247,24 @@ const withdraw = () => {
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <CardBox is-form @submit.prevent="submitProfile">
           <FormField label="Avatar" help="Max 500kb">
-            <FormFilePicker label="Upload" />
+            <FormFilePicker
+              label="Upload"
+              v-model="selectedAvatar"
+              accept="image/*"
+              @update:model-value="onAvatarChange"
+            />
+            <!-- ✅ 미리보기 영역 -->
+            <div v-if="selectedAvatar" class="mt-3">
+              <img
+                :src="selectedAvatar"
+                class="w-24 h-24 rounded-full object-cover border"
+              />
+            </div>
           </FormField>
+          <button class="mt-2 px-4 py-1 bg-blue-500 text-white rounded"
+          @click="uploadAvatar">
+            아바타 저장
+          </button>
 
           <FormField label="Name" help="Required. Your name">
             <FormControl
@@ -121,9 +278,10 @@ const withdraw = () => {
           
           <FormField label="E-mail" help="Required. Your e-mail">
             <FormControl
+              :key="profileForm.email"
               v-model="profileForm.email"
               :icon="mdiMail"
-              type="email"
+              type="text"
               name="email"
               required
               autocomplete="email"
@@ -169,6 +327,27 @@ const withdraw = () => {
           <BaseDivider />
           <FormField label="Interest" help="취업 희망 분야를 선택해주세요">
             <div>
+              <!-- 선택된 관심 분야 표시 -->
+              <div
+                v-if="profileForm.Interest.length"
+                class="flex flex-wrap gap-2 mb-2"
+              >
+                <span
+                  v-for="interest in profileForm.Interest"
+                  :key="interest"
+                  class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1"
+                >
+                  {{ interest }}
+                  <button
+                    type="button"
+                    class="text-blue-500 hover:text-red-500"
+                    @click="removeInterest(interest)"
+                  >
+                    ✕
+                  </button>
+                </span>
+              </div>
+
               <!-- 검색 입력 필드 -->
               <input
                 v-model="searchQuery"  

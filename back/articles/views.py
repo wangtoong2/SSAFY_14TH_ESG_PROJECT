@@ -1,14 +1,14 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from rest_framework.authentication import TokenAuthentication
 
 
 from django.shortcuts import get_object_or_404
 
 from .serializers import ArticleListSerializer, ArticleSerializer, CommentSerializer
-from .models import Article, Comment
+from .models import Article, ArticleLike, Comment, CommentLike
 
 
 @api_view(['GET', 'POST'])
@@ -58,7 +58,31 @@ def article_detail(request, article_pk):
     elif request.method == 'DELETE':
         article.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def article_like_toggle(request, article_pk):
+    article = get_object_or_404(Article, pk=article_pk)
+    user = request.user
+
+    like, created = ArticleLike.objects.get_or_create(
+        article=article,
+        user=user
+    )
+
+    if not created:
+        like.delete()
+        liked = False
+    else:
+        liked = True
+
+    return Response({
+        'liked': liked,
+        'likes_count': article.article_likes.count()
+    })
+
+
+# 댓글 관련    
 @api_view(['GET', 'POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticatedOrReadOnly])
@@ -71,6 +95,7 @@ def comment_list_create(request, article_pk):
         return Response(serializer.data)
     # 댓글 작성
     elif request.method == 'POST':
+        print(request.data)
         serializer = CommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(
@@ -78,3 +103,71 @@ def comment_list_create(request, article_pk):
             user=request.user    # ✅ 이제 진짜 유저
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def comment_delete(request, comment_pk):
+    comment = get_object_or_404(Comment, pk=comment_pk)
+
+    if comment.user != request.user:
+        return Response(status=403)
+
+    comment.delete()
+    return Response(status=204)
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def comment_update(request, comment_pk):
+    comment = get_object_or_404(Comment, pk=comment_pk)
+
+    if comment.user != request.user:
+        return Response({'detail': '권한 없음'}, status=403)
+
+    serializer = CommentSerializer(
+        comment,
+        data=request.data,
+        partial=True
+    )
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def comment_like(request, comment_pk):
+    comment = get_object_or_404(Comment, pk=comment_pk)
+    like, created = CommentLike.objects.get_or_create(
+        user=request.user,
+        comment=comment
+    )
+
+    if not created:
+        like.delete()
+        return Response({'liked': False})
+
+    return Response({'liked': True})
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def comment_like_toggle(request, comment_pk):
+    comment = get_object_or_404(Comment, pk=comment_pk)
+    user = request.user
+
+    like, created = CommentLike.objects.get_or_create(
+        comment=comment,
+        user=user
+    )
+
+    if not created:
+        like.delete()
+        liked = False
+    else:
+        liked = True
+
+    return Response({
+        'liked': liked,
+        'likes_count': comment.comment_likes.count()
+    })
+
+

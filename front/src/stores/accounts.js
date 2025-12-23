@@ -13,6 +13,7 @@ export const useAccountStore = defineStore(
     const token = ref(null)
     const userName = ref('')
     const router = useRouter()
+    const avatar = ref(null)
 
     /* ================= 회원가입 ================= */
     const signUp = async (payload) => {
@@ -33,44 +34,58 @@ export const useAccountStore = defineStore(
     }
 
     /* ================= 로그인 ================= */
-    const logIn = async ({ username, password }) => {
-      try {
-        const res = await axios.post(`${API_URL}/accounts/login/`, {
-          username,
-          password,
-        })
 
-        token.value = res.data.key
-        userName.value = username
+  const logIn = async ({ username, password }) => {
+    try {
+      const res = await axios.post(`${API_URL}/accounts/login/`, {
+        username,
+        password,
+      })
 
-        const mainStore = useMainStore()
-        mainStore.setUser({
-          name: username,
-          email: `${username}@example.com`,
-        })
+      token.value = res.data.key
+      axios.defaults.headers.common.Authorization = `Token ${token.value}`
 
-        axios.defaults.headers.common.Authorization = `Token ${token.value}`
+      const userRes = await axios.get(`${API_URL}/accounts/user/`)
 
-        router.push({ name: 'dashboard' })
-      } catch (err) {
-        console.error(err.response?.data || err)
-      }
+      const mainStore = useMainStore()
+      mainStore.setUser({
+        name: userRes.data.username,
+        email: userRes.data.email,
+        avatar: userRes.data.avatar,
+      })
+
+      router.push({ name: 'dashboard' })
+    } catch (err) {
+      console.error(err.response?.data || err)
     }
+  }
+
+
 
     /* ================= 로그인 상태 ================= */
     const isLogin = computed(() => !!token.value)
 
     /* ================= 로그아웃 ================= */
-    const logOut = async () => {
+    // const logOut = async () => {
+    //   token.value = null
+    //   userName.value = ''
+
+    //   const mainStore = useMainStore()
+    //   mainStore.setUser({ name: 'Guest', email: '' })
+
+    //   delete axios.defaults.headers.common.Authorization
+    //   localStorage.removeItem('account')
+
+    //   router.push({ name: 'dashboard' })
+    // }
+
+    const logOut = () => {
       token.value = null
       userName.value = ''
-
-      const mainStore = useMainStore()
-      mainStore.setUser({ name: 'Guest', email: '' })
+      avatar.value = null
 
       delete axios.defaults.headers.common.Authorization
       localStorage.removeItem('account')
-
       router.push({ name: 'dashboard' })
     }
 
@@ -112,6 +127,7 @@ export const useAccountStore = defineStore(
       token,
       userName,
       isLogin,
+      avatar
     }
   },
   { persist: true }

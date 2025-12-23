@@ -13,6 +13,14 @@ const mainStore = useMainStore()
 const userName = computed(() => mainStore.userName)
 
 const userSwitchVal = ref(false)
+
+const avatarSrc = computed(() => {
+  if (mainStore.userAvatarUrl) {
+    return `http://127.0.0.1:8000${mainStore.userAvatarUrl}?t=${Date.now()}`
+  }
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${mainStore.userEmail || 'guest'}`
+})
+
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 from dj_rest_auth.registration.serializers import RegisterSerializer
+from dj_rest_auth.serializers import UserDetailsSerializer
 from rest_framework import serializers
-
 
 class CustomRegisterSerializer(RegisterSerializer):
     age = serializers.IntegerField()
@@ -15,3 +15,15 @@ class CustomRegisterSerializer(RegisterSerializer):
         user.age = self.validated_data.get('age')
         user.save()
         return user
+
+class CustomUserDetailsSerializer(UserDetailsSerializer):
+    email = serializers.EmailField(required=False)
+    avatar = serializers.ImageField(read_only=True)
+
+    class Meta(UserDetailsSerializer.Meta):
+        fields = UserDetailsSerializer.Meta.fields + (
+            'phone_number',
+            'gender',
+            'interests',
+            'avatar',
+        )
