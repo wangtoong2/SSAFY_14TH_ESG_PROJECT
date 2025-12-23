@@ -1,0 +1,62 @@
+db채우기
+
+// 전체실행
+cd D:/00_Files/03_Study/01_SSAFY/00_PJT/02_MyPJT/free-theme-pjt/back
+venv/Scripts/python.exe manage.py update_profiles_bulk --confirm --sleep 0.1
+
+// 끊어서 실행
+// 3만개씩 실행(권장)
+venv/Scripts/python.exe manage.py update_profiles_bulk --confirm --start 0 --limit 30000 --sleep 0.1
+venv/Scripts/python.exe manage.py update_profiles_bulk --confirm --start 30000 --limit 30000 --sleep 0.1
+venv/Scripts/python.exe manage.py update_profiles_bulk --confirm --start 60000 --limit 30000 --sleep 0.1
+venv/Scripts/python.exe manage.py update_profiles_bulk --confirm --start 90000 --limit 30000 --sleep 0.1
+
+// 병렬 실행(키 2개로 동시에)
+// - 터미널 1: 0~30000 (기본키)
+venv/Scripts/python.exe manage.py update_profiles_bulk --confirm --key-env DART_API_KEY --start 0 --limit 30000 --sleep 0.1
+// - 터미널 2: 30000~60000 (DART_API_KEY2 사용)
+venv/Scripts/python.exe manage.py update_profiles_bulk --confirm --key-env DART_API_KEY2 --start 30000 --limit 30000 --sleep 0.1
+
+// 재개 팁
+// - 실행 중 Ctrl+C로 종료되면(Exit Code 130) 마지막으로 찍힌 진행 로그가 [N/...] 형태임
+// - 그때 N이 예를 들어 12345면, 다음 재개는 --start 12345 로 다시 실행하면 됨(0-based)
+
+// 중간 검증
+venv/Scripts/python.exe manage.py companyprofile_summary --corp-name "다코"
+
+// 데이터 품질 점검(통계)
+venv/Scripts/python.exe manage.py companyprofile_audit
+// (느리지만 더 정확) 공백 stock_code / company_size 불일치 / overview 키 누락까지 검사
+venv/Scripts/python.exe manage.py companyprofile_audit --deep --max-scan 50000 --samples 5
+
+// 고정 스키마 backfill (DB 저장값도 키 보강/정규화)
+// ⚠️ 주의: backfill은 '이미 존재하는 CompanyProfile'만 처리함.
+//     전체 기업에 대해 CompanyProfile이 없으면 먼저 update_profiles_bulk로 생성/채워야 함.
+// - DRY-RUN 먼저 권장
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --start 0 --limit 30000
+// - 실제 반영
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --confirm --start 0 --limit 30000
+
+// 고정 스키마 backfill (DB 저장값을 '요청 스키마만' 남기고 덮어쓰기)
+// ⚠️ 주의: backfill overwrite도 '이미 존재하는 CompanyProfile'만 처리함.
+// - DRY-RUN
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --start 0 --limit 30000
+// - 실제 반영
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --confirm --start 0 --limit 30000
+
+// 3만개씩 덮어쓰기 실행(권장)
+// - DRY-RUN
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --start 0 --limit 30000
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --start 30000 --limit 30000
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --start 60000 --limit 30000
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --start 90000 --limit 30000
+
+// - 실제 반영
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --confirm --start 0 --limit 30000
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --confirm --start 30000 --limit 30000
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --confirm --start 60000 --limit 30000
+venv/Scripts/python.exe manage.py companyprofile_backfill_fixed --overwrite --confirm --start 90000 --limit 30000
+
+// 덮어쓰기 backfill 재개 팁
+// - 실행 중 Ctrl+C로 종료되면(Exit Code 130) 마지막으로 찍힌 진행 로그가 "... N would-change" 형태로 나올 수 있음
+// - 그 경우 다음 재개는 --start (start + N) 로 실행하면 됨
