@@ -7,7 +7,7 @@ import {
   mdiChartTimelineVariant,
   mdiMonitorCellphone,
   mdiReload,
-  mdiGithub,
+  // mdiGithub,
   mdiChartPie,
 } from '@mdi/js'
 import * as chartConfig from '@/components/Charts/chart.config.js'
@@ -22,8 +22,9 @@ import CardBoxTransaction from '@/components/CardBoxTransaction.vue'
 import CardBoxClient from '@/components/CardBoxClient.vue'
 import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
-import SectionBannerStarOnGitHub from '@/components/SectionBannerStarOnGitHub.vue'
+// import SectionBannerStarOnGitHub from '@/components/SectionBannerStarOnGitHub.vue'
 import { useRouter } from 'vue-router'
+import ArticleList from '@/components/ArticleList.vue'
 
 const router = useRouter()
 
@@ -57,6 +58,8 @@ const transactionBarItems = computed(() => mainStore.history)
           @click="router.push({name : 'Create'})"
         />
       </SectionTitleLineWithButton>
+<!-- 상단바  -->
+
 
       <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <CardBoxWidget
@@ -65,7 +68,7 @@ const transactionBarItems = computed(() => mainStore.history)
           color="text-emerald-500"
           :icon="mdiAccountMultiple"
           :number="512"
-          label="Clients"
+          label="기업 이름추가"
         />
         <CardBoxWidget
           trend="12%"
@@ -74,7 +77,7 @@ const transactionBarItems = computed(() => mainStore.history)
           :icon="mdiCartOutline"
           :number="7770"
           prefix="$"
-          label="Sales"
+          label="기업 이름추가"
         />
         <CardBoxWidget
           trend="Overflow"
@@ -83,56 +86,56 @@ const transactionBarItems = computed(() => mainStore.history)
           :icon="mdiChartTimelineVariant"
           :number="256"
           suffix="%"
-          label="Performance"
+          label="기업 이름추가"
         />
       </div>
 
       <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div class="flex flex-col justify-between">
           <CardBoxTransaction
-            v-for="(transaction, index) in transactionBarItems"
-            :key="index"
-            :amount="transaction.amount"
-            :date="transaction.date"
-            :business="transaction.business"
-            :type="transaction.type"
-            :name="transaction.name"
-            :account="transaction.account"
+            v-for="i in 2" 
+            :key="'trans-' + i"
+            amount="0.00"
+            date="날짜 표시"
+            business="비즈니스명"
+            type="deposit"
+            name="계좌명"
+            account="00000000"
           />
         </div>
+
         <div class="flex flex-col justify-between">
           <CardBoxClient
-            v-for="client in clientBarItems"
-            :key="client.id"
-            :name="client.name"
-            :login="client.login"
-            :date="client.created"
-            :progress="client.progress"
+            v-for="i in 2" 
+            :key="'client-' + i"
+            name="고객명"
+            login="아이디"
+            date="2025-01-01"
+            progress="0"
           />
         </div>
       </div>
 
-      <SectionBannerStarOnGitHub class="mt-6 mb-6" />
 
-      <SectionTitleLineWithButton :icon="mdiChartPie" title="Trends overview">
-        <BaseButton :icon="mdiReload" color="whiteDark" @click="fillChartData" />
+      <SectionTitleLineWithButton :icon="mdiChartPie" title="기업 추천 바로가기">
       </SectionTitleLineWithButton>
-
       <CardBox class="mb-6">
+        <h2>라우터링크 연결하기</h2>
+      </CardBox>
+      
+
+      <!-- <SectionTitleLineWithButton :icon="mdiChartPie" title="Trends overview">
+        <BaseButton :icon="mdiReload" color="whiteDark" @click="fillChartData" />
+      </SectionTitleLineWithButton> -->
+
+      <!-- <CardBox class="mb-6">
         <div v-if="chartData">
           <line-chart :data="chartData" class="h-96" />
         </div>
-      </CardBox>
+      </CardBox> -->
 
-      <SectionTitleLineWithButton :icon="mdiAccountMultiple" title="Clients" />
-
-      <NotificationBar color="info" :icon="mdiMonitorCellphone">
-        <b>Responsive table.</b> Collapses on mobile
-      </NotificationBar>
-
-      <CardBox has-table>
-        <TableSampleClients />
-      </CardBox>
+      <SectionTitleLineWithButton :icon="mdiAccountMultiple" title="게시글" />
+      <ArticleList />
     </SectionMain>
   </LayoutAuthenticated>
 </template>

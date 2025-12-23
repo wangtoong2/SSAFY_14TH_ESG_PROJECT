@@ -38,7 +38,7 @@ const avatarSrc = computed(() => {
           />
         </div>
         <h1 class="text-2xl">
-          Howdy, <b>{{ userName }}</b
+          안녕하세요, <b>{{ userName }}</b
           >!
         </h1>
         <p>Last login <b>12 mins ago</b> from <b>127.0.0.1</b></p>

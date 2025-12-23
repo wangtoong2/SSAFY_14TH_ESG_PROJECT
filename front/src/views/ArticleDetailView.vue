@@ -8,6 +8,7 @@ import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionMain from '@/components/SectionMain.vue'
 import BaseButtons from '@/components/BaseButtons.vue'
 import BaseButton from '@/components/BaseButton.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 /* ========================
    기본 설정
@@ -56,6 +57,44 @@ const formattedDate = computed(() => {
   if (!article.value) return ''
   return new Date(article.value.created_at).toLocaleString()
 })
+
+const authorAvatar = computed(() => {
+  if (!article.value) return null
+  const u = article.value.user
+  // article.user may be string or object; backend may also provide avatar fields
+  if (u && typeof u === 'object') return u.avatar || u.profile_image || u.profile_image_url || null
+  return article.value.user_avatar || article.value.author_avatar || null
+})
+
+const authorNameResolved = computed(() => {
+  if (!article.value) return ''
+  const u = article.value.user
+  if (u && typeof u === 'object') return u.username || u.name || ''
+  return article.value.user || article.value.author || ''
+})
+
+const commentAvatar = (c) => {
+  if (!c) return null
+  if (c.user && typeof c.user === 'object') return c.user.avatar || c.user.profile_image || null
+  return c.user_avatar || c.author_avatar || null
+}
+
+const commentUserName = (c) => {
+  if (!c) return '익명'
+  if (c.user && typeof c.user === 'object') return c.user.username || c.user.name || '익명'
+  return c.user || c.author || '익명'
+}
+
+const isMyComment = (comment) => {
+  if (!comment) return false
+  if (comment.user) {
+    if (typeof comment.user === 'object') {
+      return comment.user.username === accountStore.userName
+    }
+    return comment.user === accountStore.userName
+  }
+  return false
+}
 
 /* ========================
    actions
@@ -166,10 +205,6 @@ const deleteComment = async (commentId) => {
   await fetchComments()
 }
 
-const isMyComment = (comment) => {
-  return comment.user === accountStore.userName
-}
-
 
 // 댓글 수정 함수
 const editComment = async (comment) => {
@@ -228,9 +263,10 @@ const toggleCommentLike = async (commentId) => {
           {{ article.title }}
         </h1>
 
-        <!-- 메타 정보 -->
-        <p class="text-sm text-gray-500">
-          {{ writerName }} · {{ formattedDate }}
+        <!-- 메타 정보: avatar + name -->
+        <p class="text-sm text-gray-500 flex items-center gap-2">
+          <UserAvatar :src="authorAvatar" :username="authorNameResolved" :size="24" />
+          <span>{{ authorNameResolved }} · {{ formattedDate }}</span>
         </p>
 
         <!-- 내용 -->
@@ -271,68 +307,63 @@ const toggleCommentLike = async (commentId) => {
           <h3 class="font-bold mb-4">댓글</h3>
 
           <!-- 댓글 목록 -->
-          <div
-            v-for="comment in comments"
-            :key="comment.id"
-            class="border-b py-3"
-          >
-            <!-- 상단: 작성자 / 시간 / 액션 -->
-            <div class="flex justify-between items-center">
-              <p class="text-sm text-gray-600">
-                {{ comment.user }} ·
-                {{ new Date(comment.created_at).toLocaleString() }}
-              </p>
+          <div v-for="comment in comments" :key="comment.id" class="border-b py-3">
+            <div class="flex justify-between items-start">
+              <div class="flex items-start gap-3">
+                <UserAvatar :src="commentAvatar(comment)" :username="commentUserName(comment)" :size="32" />
+                <div>
+                  <p class="text-sm text-gray-600">
+                    {{ commentUserName(comment) }} · {{ new Date(comment.created_at).toLocaleString() }}
+                  </p>
+                  <p class="mt-1 whitespace-pre-line">{{ comment.content }}</p>
+                  <div class="mt-2 flex items-center gap-2 text-sm">
+                    <button @click="toggleCommentLike(comment.id)" class="hover:underline">
+                      {{ comment.liked ? '❤️' : '🤍' }}
+                    </button>
+                    <span>{{ comment.likes_count }}</span>
+                  </div>
+                </div>
+              </div>
 
               <!-- 내 댓글일 때만 액션 -->
               <div v-if="isMyComment(comment)" class="flex gap-2 text-sm">
-                <button
-                  class="text-blue-500 hover:underline"
-                  @click="editComment(comment)"
-                >
-                  수정
-                </button>
-
-                <button
-                  class="text-red-500 hover:underline"
-                  @click="deleteComment(comment.id)"
-                >
-                  삭제
-                </button>
+                <button class="text-blue-500 hover:underline" @click="editComment(comment)">수정</button>
+                <button class="text-red-500 hover:underline" @click="deleteComment(comment.id)">삭제</button>
               </div>
             </div>
-
-            <!-- 댓글 내용 -->
-            <p class="mt-1 whitespace-pre-line">
-              {{ comment.content }}
-            </p>
-
-            <!-- (확장용) 댓글 좋아요 자리 -->
-            
-            <div class="mt-2 flex items-center gap-2 text-sm">
-              <button @click="toggleCommentLike(comment.id)">
-                {{ comment.liked ? '❤️' : '🤍' }}
-              </button>
-              <span>{{ comment.likes_count }}</span>
-            </div>
-
-           
           </div>
 
           <!-- 댓글 작성 -->
-          <div class="mt-4 space-y-2">
-            <textarea
-              v-model="commentContent"
-              class="w-full border rounded p-2"
-              rows="3"
-              placeholder="댓글을 입력하세요"
-            />
+          <div class="mt-4">
+            <div class="flex items-start gap-3">
+              <UserAvatar :src="accountStore.avatar" :username="accountStore.userName" :size="40" />
+              <div class="flex-1">
+                <textarea
+                  v-model="commentContent"
+                  :disabled="!accountStore.isLogin"
+                  class="w-full border rounded p-2"
+                  rows="3"
+                  placeholder="댓글을 입력하세요"
+                ></textarea>
 
-            <button
-              class="px-4 py-2 bg-blue-500 text-white rounded"
-              @click="createComment"
-            >
-              댓글 작성
-            </button>
+                <div class="flex justify-end mt-2">
+                  <button
+                    class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
+                    @click="createComment"
+                    :disabled="!accountStore.isLogin || !commentContent.trim()"
+                  >
+                    댓글 작성
+                  </button>
+                  <button
+                    v-if="!accountStore.isLogin"
+                    class="ml-2 px-4 py-2 border rounded"
+                    @click="$router.push({ name: 'login' })"
+                  >
+                    로그인
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

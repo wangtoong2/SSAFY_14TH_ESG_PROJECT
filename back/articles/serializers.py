@@ -4,6 +4,7 @@ from .models import Article, Comment, CommentLike
 
 class ArticleListSerializer(serializers.ModelSerializer):
     user = serializers.CharField(source='user.username', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
     likes_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -18,6 +19,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
 
 class ArticleSerializer(serializers.ModelSerializer):
     user = serializers.CharField(source='user.username', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
     class Meta:
         model = Article
         fields = '__all__'

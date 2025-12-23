@@ -15,6 +15,29 @@ export const useAccountStore = defineStore(
     const router = useRouter()
     const avatar = ref(null)
 
+    // restore persisted session on startup: if token persisted, set axios header and sync user
+    if (token.value) {
+      axios.defaults.headers.common.Authorization = `Token ${token.value}`
+      axios
+        .get(`${API_URL}/accounts/user/`)
+        .then((userRes) => {
+          const mainStore = useMainStore()
+          mainStore.setUser({
+            name: userRes.data.username,
+            email: userRes.data.email,
+            userPhonenumber: userRes.data.phone_number,
+            userGender: userRes.data.gender,
+            avatar: userRes.data.avatar,
+          })
+
+          userName.value = userRes.data.username
+          avatar.value = userRes.data.avatar
+        })
+        .catch((err) => {
+          console.error('Failed to restore user on startup', err.response?.data || err)
+        })
+    }
+
     /* ================= 회원가입 ================= */
     const signUp = async (payload) => {
       const { username, password1, password2 } = payload
@@ -54,6 +77,10 @@ export const useAccountStore = defineStore(
         avatar: userRes.data.avatar,
       })
 
+      // persist these in this store so avatar & name survive logout/login cycles
+      userName.value = userRes.data.username
+      avatar.value = userRes.data.avatar
+
       router.push({ name: 'dashboard' })
     } catch (err) {
       console.error(err.response?.data || err)
@@ -85,7 +112,7 @@ export const useAccountStore = defineStore(
       avatar.value = null
 
       delete axios.defaults.headers.common.Authorization
-      localStorage.removeItem('account')
+      // do not remove persisted store here; keep persisted token/user data handling to startup logic
       router.push({ name: 'dashboard' })
     }
 

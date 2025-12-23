@@ -1,5 +1,5 @@
 {
-  "data": [
+  [
     {
       "amount": 375.53,
       "account": "45721474",
@@ -15,22 +15,7 @@
       "date": "3 days ago",
       "type": "payment",
       "business": "Murazik - Graham"
-    },
-    {
-      "amount": 971.34,
-      "account": "63189893",
-      "name": "Checking Account",
-      "date": "5 days ago",
-      "type": "invoice",
-      "business": "Fahey - Keebler"
-    },
-    {
-      "amount": 374.63,
-      "account": "74828780",
-      "name": "Auto Loan Account",
-      "date": "7 days ago",
-      "type": "withdrawal",
-      "business": "Collier - Hintz"
     }
+    
   ]
 }

@@ -18,7 +18,7 @@ export const menuAsideMainLogin = [
   {
     label: '대시보드',
     // icon: mdiViewDashboard,
-    to: '/dashboard',
+    to: '/',
   },
   {
     label: '프로필',

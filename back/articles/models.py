@@ -1,11 +1,14 @@
 from django.db import models
 from django.conf import settings
 
+class Department(models.Model):
+    name = models.CharField(max_length=50)
 
 class Article(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE
     )
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     title = models.CharField(max_length=100)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -53,4 +56,5 @@ class CommentLike(models.Model):
 
     class Meta:
         unique_together = ('comment', 'user')
+
 

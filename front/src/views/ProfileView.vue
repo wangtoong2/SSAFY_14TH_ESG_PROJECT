@@ -24,13 +24,31 @@ const avatarFile = ref(null)
 const selectedAvatar = ref(null)
 
 const onAvatarChange = (file) => {
-  selectedAvatar.value = file
-  console.log('선택된 아바타:', file)
+  // clear
+  if (!file) {
+    if (mainStore.userAvatarUrl && mainStore.userAvatarUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(mainStore.userAvatarUrl)
+    }
+    selectedAvatar.value = null
+    mainStore.userAvatarUrl = null
+    return
+  }
+
+  // revoke previous blob preview
+  if (mainStore.userAvatarUrl && mainStore.userAvatarUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(mainStore.userAvatarUrl)
+  }
+
+  selectedAvatar.value = file // keep File for upload
+  const url = URL.createObjectURL(file)
+  mainStore.userAvatarUrl = url // show preview app-wide
+  accountStore.avatar = url // optional: keep preview in accountStore for persisted components
+
+  console.log('선택된 아바타:', file, url)
 }
 
 const avatarPreview = computed(() => {
-  if (!selectedAvatar.value) return null
-  return URL.createObjectURL(selectedAvatar.value)
+  return mainStore.userAvatarUrl || null
 })
 
 const uploadAvatar = async () => {
@@ -39,22 +57,34 @@ const uploadAvatar = async () => {
   const formData = new FormData()
   formData.append('avatar', selectedAvatar.value)
 
-  const res = await axios.patch(
-    'http://127.0.0.1:8000/accounts/user/avatar/',
-    formData,
-    {
-      headers: {
-        Authorization: `Token ${accountStore.token}`,
-      },
+  try {
+    const res = await axios.patch(
+      'http://127.0.0.1:8000/accounts/user/avatar/',
+      formData,
+      {
+        headers: {
+          Authorization: `Token ${accountStore.token}`,
+        },
+      }
+    )
+
+    // revoke blob preview if present
+    if (mainStore.userAvatarUrl && mainStore.userAvatarUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(mainStore.userAvatarUrl)
     }
-  )
 
-  // ⭐⭐⭐ 여기 ⭐⭐⭐
-  mainStore.setUser({
-    avatar: res.data.avatar,
-  })
+    // sync stores with server value (res.data.avatar expected to be server path)
+    mainStore.setUser({
+      avatar: res.data.avatar,
+    })
+    accountStore.avatar = res.data.avatar
+    selectedAvatar.value = null
 
-  alert('아바타가 변경되었습니다.')
+    alert('아바타가 변경되었습니다.')
+  } catch (e) {
+    console.error(e)
+    alert('아바타 업데이트에 실패했습니다.')
+  }
 }
 
 
@@ -254,10 +284,11 @@ onMounted(async () => {
               @update:model-value="onAvatarChange"
             />
             <!-- ✅ 미리보기 영역 -->
-            <div v-if="selectedAvatar" class="mt-3">
+            <div v-if="avatarPreview" class="mt-3">
               <img
-                :src="selectedAvatar"
-                class="w-24 h-24 rounded-full object-cover border"
+                :src="avatarPreview"
+                class="w-32 h-32 rounded-full object-cover object-center border"
+                style="width:128px;height:128px;"
               />
             </div>
           </FormField>
