@@ -1,0 +1,92 @@
+[
+{
+  "model": "accounts.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$HiblTWioNmcOGVibT0gRXR$Df3I5LQSUTir3iAeb2ZHAfk0PZo19u96UUJ/ga0nzpc=",
+    "last_login": "2025-12-23T02:00:17.811Z",
+    "is_superuser": false,
+    "username": "챠챠",
+    "first_name": "",
+    "last_name": "",
+    "email": "test1@example.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-23T00:40:47.661Z",
+    "phone_number": "01012345678",
+    "gender": "female",
+    "interests": [
+      "Data Science"
+    ],
+    "avatar": "",
+    "groups": [],
+    "user_permissions": [],
+    "followings": []
+  }
+},
+{
+  "model": "accounts.user",
+  "pk": 2,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$PZozegxDnvLEcdWuSy8Uaq$5xpYtFQMf9QTFkbMF0bZr1SA+iNlByNEf9U8caEp6lE=",
+    "last_login": "2025-12-23T06:13:04.169Z",
+    "is_superuser": false,
+    "username": "test3",
+    "first_name": "",
+    "last_name": "",
+    "email": "test@example.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-23T01:39:48.051Z",
+    "phone_number": "010111111111",
+    "gender": "male",
+    "interests": [
+      "Data Science"
+    ],
+    "avatar": "avatars/아바타_테스트_PVDhzaX.jpg",
+    "groups": [],
+    "user_permissions": [],
+    "followings": []
+  }
+},
+{
+  "model": "accounts.user",
+  "pk": 3,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$5x9V2Q20GkDV5s1oGjLsJt$vZRQ1wUcrKiVse0qGPmJrARaUbH2O0EKjG07BS6IYYQ=",
+    "last_login": "2025-12-23T06:59:51.812Z",
+    "is_superuser": false,
+    "username": "test1",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-23T06:55:43.460Z",
+    "phone_number": "",
+    "gender": "",
+    "interests": [],
+    "avatar": "avatars/다운로드_6.jpg",
+    "groups": [],
+    "user_permissions": [],
+    "followings": []
+  }
+},
+{
+  "model": "accounts.user",
+  "pk": 4,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$pryozI8ASqvUlhbPjSuCyw$ra4VY0tcYdm7eL0mWy/ryjlsAh7lx8yp8TGltgx+Q48=",
+    "last_login": "2025-12-23T08:25:16.365Z",
+    "is_superuser": false,
+    "username": "cici",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-12-23T07:02:46.404Z",
+    "phone_number": "",
+    "gender": "",
+    "interests": [],
+    "avatar": 

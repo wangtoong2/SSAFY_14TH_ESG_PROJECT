@@ -1,0 +1,62 @@
+[
+{
+  "model": "articles.article",
+  "pk": 1,
+  "fields": {
+    "user": 1,
+    "department": null,
+    "title": "¾ÆÀÚ½º",
+    "content": "¾ÆÀÚ½º",
+    "created_at": "2025-12-23T00:40:56.675Z",
+    "updated_at": "2025-12-23T01:24:44.007Z"
+  }
+},
+{
+  "model": "articles.article",
+  "pk": 2,
+  "fields": {
+    "user": 4,
+    "department": null,
+    "title": "³¢¸£¿äÈþ",
+    "content": "³¢¸£È¿À× ¤Ð¤Ð",
+    "created_at": "2025-12-23T07:07:11.729Z",
+    "updated_at": "2025-12-23T07:07:11.729Z"
+  }
+},
+{
+  "model": "articles.article",
+  "pk": 3,
+  "fields": {
+    "user": 4,
+    "department": null,
+    "title": "¤·¤©¤¤¤·¤©¤¤",
+    "content": "¤·¤©¤§¤¡¤¾",
+    "created_at": "2025-12-23T07:13:24.331Z",
+    "updated_at": "2025-12-23T07:13:24.331Z"
+  }
+},
+{
+  "model": "articles.article",
+  "pk": 4,
+  "fields": {
+    "user": 4,
+    "department": 1,
+    "title": "¤°¤·¤©",
+    "content": "¤·¤°¤©",
+    "created_at": "2025-12-23T07:37:43.923Z",
+    "updated_at": "2025-12-23T07:37:43.923Z"
+  }
+},
+{
+  "model": "articles.article",
+  "pk": 5,
+  "fields": {
+    "user": 4,
+    "department": 1,
+    "title": "»þ°¥!",
+    "content": "»þ°¥!!",
+    "created_at": "2025-12-23T08:25:25.505Z",
+    "updated_at": "2025-12-23T08:25:25.505Z"
+  }
+}
+]
