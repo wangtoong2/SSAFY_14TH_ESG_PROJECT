@@ -1,0 +1,23 @@
+[
+{
+  "model": "articles.department",
+  "pk": 1,
+  "fields": {
+    "name": "Business development"
+  }
+},
+{
+  "model": "articles.department",
+  "pk": 2,
+  "fields": {
+    "name": "Marketing"
+  }
+},
+{
+  "model": "articles.department",
+  "pk": 3,
+  "fields": {
+    "name": "Sales"
+  }
+}
+]
