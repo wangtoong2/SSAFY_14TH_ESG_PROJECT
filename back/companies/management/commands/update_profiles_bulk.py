@@ -1,4 +1,8 @@
 from django.core.management.base import BaseCommand
+<<<<<<< HEAD
+=======
+from django.db.utils import OperationalError
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
 from companies.models import Company, CompanyProfile
 from companies.services import (
     fetch_company_data,
@@ -13,6 +17,29 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+<<<<<<< HEAD
+=======
+def _is_sqlite_locked_error(e: Exception) -> bool:
+    msg = str(e).lower()
+    return 'database is locked' in msg or 'database table is locked' in msg
+
+
+def _update_or_create_with_retries(*, company, data, max_retries=8, base_sleep=0.15):
+    """Best-effort retries for SQLite concurrent writer locks."""
+    last_exc = None
+    for attempt in range(max_retries):
+        try:
+            return CompanyProfile.objects.update_or_create(company=company, defaults={'data': data})
+        except OperationalError as e:
+            last_exc = e
+            if not _is_sqlite_locked_error(e):
+                raise
+            # backoff with a small cap
+            time.sleep(min(base_sleep * (2 ** attempt), 2.0))
+    raise last_exc
+
+
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
 class Command(BaseCommand):
     help = 'Bulk fetch DART data for all companies and save into CompanyProfile (dry-run unless --confirm)'
 
@@ -21,12 +48,38 @@ class Command(BaseCommand):
         parser.add_argument('--start', type=int, default=0, help='Start index (0-based)')
         parser.add_argument('--limit', type=int, default=0, help='Max companies to process (0 = all)')
         parser.add_argument('--confirm', action='store_true', help='Actually perform DB writes')
+<<<<<<< HEAD
+=======
+        parser.add_argument(
+            '--key-env',
+            type=str,
+            default='DART_API_KEY',
+            help=(
+                'Which environment variable to use for DART key. '
+                "Example: --key-env DART_API_KEY2. The selected value will be mapped into DART_API_KEY for this process."
+            ),
+        )
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
 
     def handle(self, *args, **options):
         sleep = options.get('sleep')
         start = options.get('start')
         limit = options.get('limit')
         confirm = options.get('confirm')
+<<<<<<< HEAD
+=======
+        key_env = (options.get('key_env') or 'DART_API_KEY').strip()
+
+        # Allow running multiple processes with different keys by selecting a different env var.
+        # We normalize the selected key into DART_API_KEY so downstream code doesn't need to know about key2.
+        if key_env != 'DART_API_KEY':
+            selected = os.environ.get(key_env)
+            if selected:
+                os.environ['DART_API_KEY'] = selected
+                self.stdout.write(f'Using DART key from env: {key_env} (mapped to DART_API_KEY for this process)')
+            else:
+                self.stdout.write(f'WARNING: env var {key_env} is not set. Falling back to DART_API_KEY.')
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
 
         qs = Company.objects.all().order_by('id')
         total = qs.count()
@@ -56,6 +109,20 @@ class Command(BaseCommand):
                     except Exception:
                         pass
 
+<<<<<<< HEAD
+=======
+                    # Ensure canonical corp_code/stock_code stored from DB
+                    try:
+                        data['corp_code'] = c.corp_code
+                    except Exception:
+                        pass
+                    canonical_stock_code = (c.stock_code or '').strip() or None
+                    try:
+                        data['stock_code'] = canonical_stock_code
+                    except Exception:
+                        pass
+
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
                     # if overview is missing/invalid, force corp_code-based overview
                     overview = data.get('company_overview') if isinstance(data, dict) else None
                     raw = overview.get('raw') if isinstance(overview, dict) else None
@@ -86,6 +153,7 @@ class Command(BaseCommand):
                                 data['financials'] = fin
                         except Exception:
                             pass
+<<<<<<< HEAD
 
                     data['stock_code'] = c.stock_code
                     try:
@@ -93,6 +161,20 @@ class Command(BaseCommand):
                     except Exception:
                         data['company_size'] = data.get('company_size')
 
+=======
+                    try:
+                        data['company_size'] = classify_company_size(canonical_stock_code, data.get('financials'))
+                    except Exception:
+                        data['company_size'] = data.get('company_size')
+
+                    # also store company_size inside company_overview for fixed schema
+                    try:
+                        if isinstance(data.get('company_overview'), dict):
+                            data['company_overview']['company_size'] = data.get('company_size')
+                    except Exception:
+                        pass
+
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
                     if confirm:
                         try:
                             # merge with existing profile data to avoid accidental overwrite
@@ -128,9 +210,23 @@ class Command(BaseCommand):
                                 new_co.pop('industry_name', None)
                             merged_co = existing_co.copy()
                             merged_co.update({k: v for k, v in new_co.items() if v is not None})
+<<<<<<< HEAD
                             merged['company_overview'] = merged_co
 
                             CompanyProfile.objects.update_or_create(company=c, defaults={'data': merged})
+=======
+                            # avoid duplicated identifiers inside company_overview
+                            for k in ['corp_name', 'corp_code', 'stock_code']:
+                                merged_co.pop(k, None)
+
+                            # keep company_overview schema stable across companies
+                            for k in ['ceo_nm', 'addr', 'industry', 'industry_code', 'induty_code', 'est_dt', 'adres', 'region', 'company_size', 'raw']:
+                                if k not in merged_co:
+                                    merged_co[k] = None
+                            merged['company_overview'] = merged_co
+
+                            _update_or_create_with_retries(company=c, data=merged)
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
                         except Exception as db_e:
                             elog.write(f'DB error for {c.corp_name}: {db_e}\n')
                             elog.flush()

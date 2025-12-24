@@ -5,6 +5,108 @@ from django.http import JsonResponse
 from accounts.models import User
 from .recommender import recommend_companies
 from .api import get_all_corporate_disclosure_data
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Company
+
+from companies.services import (
+    recommend_companies,
+    call_gpt_for_recommendations,
+)
+
+@api_view(["POST"])
+def recommend_companies_api(request):
+    """
+    기업 추천 API
+    """
+
+    # =========================
+    # 1. 입력값 파싱
+    # =========================
+    location = request.data.get("location")
+    industry = request.data.get("industry")
+    company_size = request.data.get("company_size")
+    top_n = request.data.get("top_n", 5)
+
+    # =========================
+    # 2. 입력 검증 (필수)
+    # =========================
+    if not all([location, industry, company_size]):
+        return Response(
+            {"detail": "location, industry, company_size는 필수입니다."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        top_n = int(top_n)
+        if top_n <= 0 or top_n > 20:
+            raise ValueError
+    except ValueError:
+        return Response(
+            {"detail": "top_n은 1~20 사이의 정수여야 합니다."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # =========================
+    # 3. 사용자 선호 prefs 구성
+    # =========================
+    prefs = {
+        "location": location,
+        "desired_industries": [industry],
+        "desired_size": company_size,
+    }
+
+    # =========================
+    # 4. 1차 로컬 추천 (필수)
+    # =========================
+def recommend_companies(prefs, top_n=20):
+    """
+    rule-based / DB 기반 추천
+    """
+    results = []
+
+    for company in Company.objects.all():
+        score = 0.0
+
+        if company.location == prefs["location"]:
+            score += 0.4
+        if company.industry in prefs["desired_industries"]:
+            score += 0.4
+        if company.size == prefs["desired_size"]:
+            score += 0.2
+
+        if score > 0:
+            results.append({
+                "corp_name": company.name,
+                "industry": company.industry,
+                "size": company.size,
+                "location": company.location,
+                "score": round(score, 2),
+            })
+
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return results[:top_n]
+
+
+    # =========================
+    # 5. GPT 재랭킹 (선택)
+    # =========================
+    try:
+        result = call_gpt_for_recommendations(
+            prefs=prefs,
+            candidates=candidates,
+            top_n=top_n,
+        )
+    except Exception as e:
+        # GPT 실패 시 fallback
+        result = candidates[:top_n]
+
+    # =========================
+    # 6. 응답 반환
+    # =========================
+    return Response(result, status=status.HTTP_200_OK)
+
 
 def get_company_recommendations(request):
     """

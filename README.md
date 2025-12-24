@@ -41,3 +41,5 @@ https://www.erdcloud.com/
     environ.Env.read_env()
     API_KEY = env('API_KEY')
     ```
+
+## 시연 이전 개발자 도구에 안나오도록 console.log 잘 정리해둘것

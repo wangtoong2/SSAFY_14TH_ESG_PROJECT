@@ -23,7 +23,26 @@ if not c:
 
 print('Updating company:', c.corp_name, 'id=', c.id)
 
+<<<<<<< HEAD
 data = fetch_company_data(c.corp_name)
+=======
+# Ensure DART API key is available before attempting network calls
+from dotenv import load_dotenv
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+if os.path.exists(env_path):
+    try:
+        load_dotenv(env_path)
+    except Exception:
+        pass
+
+if not (os.environ.get('DART_API_KEY') or getattr(__import__('django').conf.settings, 'DART_API_KEY', None)):
+    print('DART_API_KEY not found in environment or settings. Set DART_API_KEY and re-run. Exiting.')
+    sys.exit(2)
+
+# Prefer using corp_code when available to query DART
+query = c.corp_code or c.corp_name
+data = fetch_company_data(query)
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
 # ensure stock_code and recompute
 data['stock_code'] = c.stock_code
 try:

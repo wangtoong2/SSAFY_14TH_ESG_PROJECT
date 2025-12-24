@@ -372,4 +372,3 @@ const toggleCommentLike = async (commentId) => {
     </SectionMain>
   </LayoutAuthenticated>
 </template>
-

@@ -3,6 +3,7 @@ import time
 
 import requests
 from django.conf import settings
+import os
 
 from .models import CorporateDisclosure
 # Use the official OpenDART HTTPS endpoint
@@ -10,7 +11,8 @@ URL = 'https://opendart.fss.or.kr/api/list.json'
 
 
 def _get_dart_api_key():
-    return getattr(settings, 'DART_API_KEY', None)
+    # Prefer per-process override via env var, then fallback to Django settings
+    return os.environ.get('DART_API_KEY') or getattr(settings, 'DART_API_KEY', None)
 
 
 def _parse_yyyymmdd(s):

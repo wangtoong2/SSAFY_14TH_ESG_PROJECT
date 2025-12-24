@@ -9,9 +9,9 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
+from pathlib import Path
 from dotenv import load_dotenv
 import os
-from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -207,3 +207,8 @@ ALLOWED_HOSTS = ['*']
 MEDIA_URL = '/media/'
 
 MEDIA_ROOT = BASE_DIR / 'media'
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+
+# django live share용 코드
+# 배포시 제거해야함
+ALLOWED_HOSTS = ['*']

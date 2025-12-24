@@ -22,8 +22,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from rest_framework import status
+<<<<<<< HEAD
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
+=======
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
 
 @api_view(['DELETE'])
 @authentication_classes([TokenAuthentication])
@@ -45,6 +48,7 @@ def withdraw_user(request):
         {'detail': '회원 탈퇴가 완료되었습니다.'},
         status=status.HTTP_200_OK
     )
+<<<<<<< HEAD
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -79,3 +83,5 @@ def avatar_update(request):
     return Response({
         'avatar': user.avatar.url
     })
+=======
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e

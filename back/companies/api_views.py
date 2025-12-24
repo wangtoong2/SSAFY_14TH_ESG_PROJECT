@@ -1,9 +1,19 @@
 from rest_framework.views import APIView
+from rest_framework.exceptions import ParseError
+import logging
 from rest_framework.response import Response
 from rest_framework import status
-from .services import recommend_companies, fetch_company_data, classify_company_size, extract_region_from_address
+from .services import (
+    recommend_companies,
+    fetch_company_data,
+    classify_company_size,
+    # build_fixed_companyprofile_payload,
+    call_gpt_for_recommendations,
+    score_company_for_user,
+)
 from .models import Company, CompanyProfile
 from .serializers import PreferencesSerializer
+from rest_framework import serializers
 from .api import get_all_corporate_disclosure_data
 
 
@@ -69,36 +79,34 @@ class CompanyProfileSummary(APIView):
                 data = fetch_company_data(c.corp_code or c.corp_name)
                 # ensure stock_code and size
                 data['corp_name'] = c.corp_name
-                data['stock_code'] = c.stock_code
+                data['corp_code'] = c.corp_code
+                canonical_stock_code = (c.stock_code or '').strip() or None
+                data['stock_code'] = canonical_stock_code
+
+                # Avoid duplicated identifiers inside company_overview
                 try:
-                    data['company_size'] = classify_company_size(c.stock_code, data.get('financials'))
+                    overview = data.get('company_overview') if isinstance(data, dict) else None
+                    if isinstance(overview, dict):
+                        for k in ['corp_name', 'corp_code', 'stock_code']:
+                            overview.pop(k, None)
+                        data['company_overview'] = overview
+                except Exception:
+                    pass
+                try:
+                    data['company_size'] = classify_company_size(canonical_stock_code, data.get('financials'))
+                except Exception:
+                    pass
+
+                try:
+                    if isinstance(data.get('company_overview'), dict):
+                        data['company_overview']['company_size'] = data.get('company_size')
                 except Exception:
                     pass
                 CompanyProfile.objects.update_or_create(company=c, defaults={'data': data})
             except Exception as e:
                 return Response({'error': f'Failed to fetch profile: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        overview = (data or {}).get('company_overview') or {}
-        industry_code = overview.get('industry_code')
-        # If industry_code missing but raw present, try to backfill using existing helper
-        if not industry_code and overview.get('raw'):
-            try:
-                from .services import _extract_industry_fields_from_raw
-                norm = _extract_industry_fields_from_raw(overview.get('raw'))
-                industry_code = norm.get('industry_code') or industry_code
-            except Exception:
-                pass
-
-        addr = overview.get('addr')
-        region = overview.get('region') or (extract_region_from_address(addr) if addr else None)
-
-        payload = {
-            'corp_name': c.corp_name,
-            'industry_code': industry_code,
-            'financials': data.get('financials') if data else None,
-            'region': region,
-        }
-        return Response(payload)
+        return Response(build_fixed_companyprofile_payload(c, data))
 
 
 class UserCompanyRecommendations(APIView):
@@ -150,3 +158,105 @@ class ParseCorporateDisclosures(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({'status': 'Data fetching and saving completed.'})
+
+
+class GPTRecommendCompanies(APIView):
+    """POST { region, industry, size, top_n, use_gpt } -> GPT-ranked recommendations
+
+    - `region`: string (e.g., '서울특별시')
+    - `industry`: string or list
+    - `size`: string or list (e.g., '중소','중견','대기업')
+    - `top_n`: int
+    - `use_gpt`: bool (default True)
+    """
+
+    def post(self, request):
+        try:
+            body = request.data or {}
+        except ParseError as pe:
+            logging.getLogger(__name__).exception('Failed parsing request body')
+            return Response({'error': 'Invalid JSON body', 'details': str(pe)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logging.getLogger(__name__).exception('Unexpected error reading request body')
+            return Response({'error': 'Failed to read request body', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        region = body.get('region')
+        industry = body.get('industry')
+        size = body.get('size')
+        try:
+            top_n = int(body.get('top_n') or 10)
+        except Exception:
+            top_n = 10
+        use_gpt = bool(body.get('use_gpt', True))
+
+        # Normalize prefs to match services.recommend_companies
+        prefs = {}
+        if industry:
+            if isinstance(industry, (list, tuple)):
+                prefs['desired_industries'] = industry
+            else:
+                prefs['desired_industries'] = [s.strip() for s in str(industry).split(',') if s.strip()]
+        if size:
+            if isinstance(size, (list, tuple)):
+                prefs['desired_size'] = size
+            else:
+                prefs['desired_size'] = [s.strip() for s in str(size).split(',') if s.strip()]
+        if region:
+            prefs['location'] = region
+
+        try:
+            candidates = recommend_companies(prefs, top_n=50)
+        except Exception as e:
+            return Response({'error': f'Recommendation error: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # If client provided an explicit list of company ids, limit candidates to those
+        selected_ids = body.get('selected_company_ids')
+        if selected_ids:
+            try:
+                # normalize ids to ints
+                selected_ids = [int(x) for x in selected_ids]
+                qs = Company.objects.filter(id__in=selected_ids).select_related('profile')
+                candidates = []
+                for c in qs:
+                    prof = getattr(c, 'profile', None)
+                    data = prof.data if prof and prof.data else {}
+                    # ensure company_size
+                    if data.get('company_size') is None:
+                        try:
+                            data['company_size'] = classify_company_size(c.stock_code, data.get('financials'))
+                        except Exception:
+                            data['company_size'] = None
+
+                    score, breakdown = score_company_for_user(prefs, data)
+                    candidates.append({
+                        'company_id': c.id,
+                        'corp_name': c.corp_name,
+                        'company_size': data.get('company_size'),
+                        'score': score,
+                        'breakdown': breakdown,
+                        'profile': data,
+                    })
+                # keep top ordering
+                candidates.sort(key=lambda x: x['score'], reverse=True)
+            except Exception as e:
+                return Response({'error': f'Invalid selected_company_ids: {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if use_gpt:
+            ranked = call_gpt_for_recommendations(prefs, candidates, top_n=top_n)
+            return Response({'results': ranked})
+
+        # fallback: return top N candidates from deterministic recommender
+        return Response({'results': candidates[:top_n]})
+
+
+class CompanyList(APIView):
+    """Return a lightweight list of companies for front-end selection."""
+
+    class OutSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        corp_name = serializers.CharField()
+        corp_code = serializers.CharField(allow_null=True)
+
+    def get(self, request):
+        qs = Company.objects.all().order_by('corp_name')[:500]
+        out = [{'id': c.id, 'corp_name': c.corp_name, 'corp_code': c.corp_code} for c in qs]
+        return Response({'companies': out})

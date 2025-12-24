@@ -7,7 +7,11 @@ const routes = [
     meta: {
       title: 'Dashboard',
     },
+<<<<<<< HEAD
     path: '/',
+=======
+    path: '/dashboard',
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
     name: 'dashboard',
     component: () => import('@/views/DashboardView.vue'),
   },
@@ -85,6 +89,16 @@ const routes = [
     name: 'ArticleEdit',
     component: () => import('@/views/ArticleEditView.vue'),
   }
+<<<<<<< HEAD
+=======
+  ,
+  {
+    meta: { title: '기업 추천' },
+    path: '/recommend',
+    name: 'recommend',
+    component: () => import('@/views/RecommendView.vue'),
+  }
+>>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
 ]
 
 const router = createRouter({

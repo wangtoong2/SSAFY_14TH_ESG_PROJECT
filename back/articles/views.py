@@ -170,4 +170,3 @@ def comment_like_toggle(request, comment_pk):
         'likes_count': comment.comment_likes.count()
     })
 
-

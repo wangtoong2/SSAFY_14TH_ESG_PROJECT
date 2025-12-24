@@ -28,13 +28,6 @@ urlpatterns = [
 ]
 
 
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/v1/articles/', include('articles.urls')),
-    path('accounts/', include('accounts.urls')),
-    path('accounts/registration/', include('dj_rest_auth.registration.urls')),
-    path('companies/', include('companies.urls')),
-]
 
 if settings.DEBUG:
     urlpatterns += static(
