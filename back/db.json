@@ -275,38 +275,6 @@
   }
 },
 {
-  "model": "authtoken.token",
-  "pk": "3dfc8877861853f93709d3d254a0a7be9a4e56d3",
-  "fields": {
-    "user": 4,
-    "created": "2025-12-23T07:02:46.907Z"
-  }
-},
-{
-  "model": "authtoken.token",
-  "pk": "430160466c00e1c2d930425e764f192da59bd9e2",
-  "fields": {
-    "user": 1,
-    "created": "2025-12-23T00:40:47.932Z"
-  }
-},
-{
-  "model": "authtoken.token",
-  "pk": "696f5150326c396854c4f36a2ae77c0b3cd77cc5",
-  "fields": {
-    "user": 3,
-    "created": "2025-12-23T06:55:43.757Z"
-  }
-},
-{
-  "model": "authtoken.token",
-  "pk": "a505ee8535b425835bdd2020a61531de4b5a202d",
-  "fields": {
-    "user": 2,
-    "created": "2025-12-23T01:39:48.324Z"
-  }
-},
-{
   "model": "sites.site",
   "pk": 1,
   "fields": {
