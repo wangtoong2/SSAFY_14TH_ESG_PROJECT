@@ -1,6 +1,29 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 
+/* GmarketSans font files are under /public/fonts/GmarketSansTTF/ —
+   declare separate faces for weights that exist in the folder. */
+@font-face {
+  font-family: 'GmarketSans';
+  src: url('/fonts/GmarketSansTTF/GmarketSansTTFLight.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'GmarketSans';
+  src: url('/fonts/GmarketSansTTF/GmarketSansTTFMedium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'GmarketSans';
+  src: url('/fonts/GmarketSansTTF/GmarketSansTTFBold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 @source inline('style-{basic,white}');
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -27,6 +50,9 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
+  html, body {
+    font-family: 'GmarketSans', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
   *,
   ::after,
   ::before,

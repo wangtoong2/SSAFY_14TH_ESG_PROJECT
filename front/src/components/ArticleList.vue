@@ -1,5 +1,5 @@
 <template>
-  <div class="card-box p-4">
+  <div class="card-box p-4 bg-white dark:bg-slate-900/70 border border-gray-200 dark:border-slate-800 rounded-lg">
     <h3 class="text-lg font-semibold mb-3">게시글 목록</h3>
 
     <div v-if="loading">로딩 중...</div>
@@ -36,7 +36,7 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useAccountStore } from '@/stores/accounts'
 import { useRouter } from 'vue-router'
-// import UserAvatar from '@/components/UserAvatar.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const articles = ref([])
 const loading = ref(false)
@@ -126,7 +126,3 @@ const openDetail = (item) => {
 
 onMounted(fetchArticles)
 </script>
-
-<style scoped>
-.card-box { background: white; border: 1px solid #e5e7eb; border-radius: 8px; }
-</style>

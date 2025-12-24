@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 # Create your models here.
 class Company(models.Model):
@@ -44,3 +45,34 @@ class CompanyProfile(models.Model):
 
     def __str__(self):
         return f"Profile: {self.company.corp_name}"
+
+
+# 댓글 관련 모델: Company에 대한 댓글과 좋아요
+class CompanyComment(models.Model):
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name='comments'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    content = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Comment by {self.user} on {self.company}"
+
+
+class CompanyCommentLike(models.Model):
+    comment = models.ForeignKey(
+        CompanyComment,
+        on_delete=models.CASCADE,
+        related_name='comment_likes'
+    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('comment', 'user')

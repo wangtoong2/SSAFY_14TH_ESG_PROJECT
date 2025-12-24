@@ -4,7 +4,11 @@ module.exports = {
     "./src/**/*.{html,js,vue}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['GmarketSans', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+      },
+    },
   },
   plugins: [],
 }

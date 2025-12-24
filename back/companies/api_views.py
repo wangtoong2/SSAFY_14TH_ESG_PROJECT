@@ -7,7 +7,7 @@ from .services import (
     recommend_companies,
     fetch_company_data,
     classify_company_size,
-    # build_fixed_companyprofile_payload,
+    build_fixed_companyprofile_payload,
     call_gpt_for_recommendations,
     score_company_for_user,
 )
@@ -15,6 +15,16 @@ from .models import Company, CompanyProfile
 from .serializers import PreferencesSerializer
 from rest_framework import serializers
 from .api import get_all_corporate_disclosure_data
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.authentication import TokenAuthentication
+from django.shortcuts import get_object_or_404
+from .serializers import CompanyCommentSerializer
+from .models import CompanyComment, CompanyCommentLike
+from rest_framework import status
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class RecommendCompanies(APIView):
@@ -106,7 +116,20 @@ class CompanyProfileSummary(APIView):
             except Exception as e:
                 return Response({'error': f'Failed to fetch profile: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response(build_fixed_companyprofile_payload(c, data))
+        # build a stable response payload here instead of relying on an external helper
+        try:
+            canonical_stock_code = (c.stock_code or '').strip() or None
+        except Exception:
+            canonical_stock_code = None
+
+        payload = {
+            'company_id': c.id,
+            'corp_name': c.corp_name,
+            'corp_code': c.corp_code,
+            'stock_code': canonical_stock_code,
+            'profile': data,
+        }
+        return Response(payload)
 
 
 class UserCompanyRecommendations(APIView):
@@ -208,6 +231,30 @@ class GPTRecommendCompanies(APIView):
         except Exception as e:
             return Response({'error': f'Recommendation error: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        # helper: enrich results (list of dicts) with corp_name from Company when company_id present
+        def _enrich_with_corp_name(results_list):
+            if not isinstance(results_list, (list, tuple)):
+                return
+            for it in results_list:
+                try:
+                    if not isinstance(it, dict):
+                        continue
+                    cid = it.get('company_id') or it.get('id')
+                    if cid is None:
+                        continue
+                    try:
+                        cid_int = int(cid)
+                    except Exception:
+                        cid_int = None
+
+                    c = None
+                    if cid_int is not None:
+                        c = Company.objects.filter(id=cid_int).first()
+                    if c and c.corp_name:
+                        it.setdefault('corp_name', c.corp_name)
+                except Exception:
+                    continue
+
         # If client provided an explicit list of company ids, limit candidates to those
         selected_ids = body.get('selected_company_ids')
         if selected_ids:
@@ -241,10 +288,31 @@ class GPTRecommendCompanies(APIView):
                 return Response({'error': f'Invalid selected_company_ids: {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
         if use_gpt:
-            ranked = call_gpt_for_recommendations(prefs, candidates, top_n=top_n)
-            return Response({'results': ranked})
+            try:
+                ranked = call_gpt_for_recommendations(prefs, candidates, top_n=top_n)
+                # enrich ranked results with corp_name when possible
+                try:
+                    _enrich_with_corp_name(ranked)
+                except Exception:
+                    pass
+                return Response({'results': ranked})
+            except Exception as e:
+                logging.getLogger(__name__).warning('GPT rerank failed, falling back to deterministic results: %s', e)
+                # Fall back to deterministic recommender results if GMS/ GPT call fails
+                fallback = candidates[:top_n]
+                # enrich fallback results with corp_name when possible
+                try:
+                    _enrich_with_corp_name(fallback)
+                except Exception:
+                    pass
+                # attach an informative warning so frontend can surface it if desired
+                return Response({'results': fallback, 'warning': f'GPT rerank failed: {str(e)}'})
 
         # fallback: return top N candidates from deterministic recommender
+        try:
+            _enrich_with_corp_name(candidates)
+        except Exception:
+            pass
         return Response({'results': candidates[:top_n]})
 
 
@@ -260,3 +328,91 @@ class CompanyList(APIView):
         qs = Company.objects.all().order_by('corp_name')[:500]
         out = [{'id': c.id, 'corp_name': c.corp_name, 'corp_code': c.corp_code} for c in qs]
         return Response({'companies': out})
+
+
+# --- Company comments endpoints (mirror articles.comments) ---
+@api_view(['GET', 'POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticatedOrReadOnly])
+def company_comment_list_create(request, company_pk):
+    company = get_object_or_404(Company, pk=company_pk)
+    if request.method == 'GET':
+        comments = company.comments.all()
+        serializer = CompanyCommentSerializer(comments, many=True, context={'request': request})
+        return Response(serializer.data)
+    elif request.method == 'POST':
+        serializer = CompanyCommentSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(company=company, user=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def company_comment_delete(request, comment_pk):
+    comment = get_object_or_404(CompanyComment, pk=comment_pk)
+    if comment.user != request.user:
+        return Response(status=403)
+    comment.delete()
+    return Response(status=204)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def company_comment_update(request, comment_pk):
+    comment = get_object_or_404(CompanyComment, pk=comment_pk)
+    if comment.user != request.user:
+        return Response({'detail': '권한 없음'}, status=403)
+    serializer = CompanyCommentSerializer(comment, data=request.data, partial=True, context={'request': request})
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def company_comment_like_toggle(request, comment_pk):
+    comment = get_object_or_404(CompanyComment, pk=comment_pk)
+    user = request.user
+    like, created = CompanyCommentLike.objects.get_or_create(comment=comment, user=user)
+    if not created:
+        like.delete()
+        liked = False
+    else:
+        liked = True
+    return Response({'liked': liked, 'likes_count': comment.comment_likes.count()})
+
+
+@api_view(['GET', 'POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticatedOrReadOnly])
+def company_favorite(request, company_pk):
+    c = get_object_or_404(Company, pk=company_pk)
+    user = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+    if request.method == 'GET':
+        favorited = False
+        if user:
+            favorited = user.favorites.filter(id=c.id).exists()
+        return Response({'favorited': favorited})
+
+    # POST: toggle
+    if not user:
+        return Response({'detail': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if user.favorites.filter(id=c.id).exists():
+        user.favorites.remove(c)
+        favorited = False
+    else:
+        user.favorites.add(c)
+        favorited = True
+
+    return Response({'favorited': favorited})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_favorites(request):
+    user = request.user
+    qs = user.favorites.all()
+    out = [{'id': c.id, 'corp_name': c.corp_name, 'corp_code': c.corp_code} for c in qs]
+    return Response({'companies': out})

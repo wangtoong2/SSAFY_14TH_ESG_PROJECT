@@ -7,6 +7,7 @@
   <CardBox
   :class="[cardClass, 'login-card']"
   >
+  <img src="/jobffy_logo.png" alt="logo" class="auth-logo" />
   <h1 class="login-title">로그인</h1>
       <form @submit.prevent="logIn">
         <FormField label="아이디">
@@ -44,7 +45,9 @@
           <span>|</span>
           <RouterLink to="/signup">회원가입</RouterLink>
         </div>
-
+        <div class="text-center mt-3">
+          <router-link :to="{ name: 'dashboard' }" class="text-sm text-slate-600 hover:underline">메인으로</router-link>
+        </div>
       </CardBox>
     </SectionFullScreen>
   </LayoutGuest>
@@ -122,5 +125,12 @@ const router = useRouter()
   font-weight: 700;
   margin-bottom: 32px; /* 제목과 첫 입력칸 거리 */
   color: #111;
+}
+
+.auth-logo {
+  display: block;
+  width: 140px;
+  height: auto;
+  margin: 0 auto 12px auto;
 }
 </style>

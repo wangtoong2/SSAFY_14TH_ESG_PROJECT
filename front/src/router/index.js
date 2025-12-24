@@ -7,11 +7,7 @@ const routes = [
     meta: {
       title: 'Dashboard',
     },
-<<<<<<< HEAD
     path: '/',
-=======
-    path: '/dashboard',
->>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
     name: 'dashboard',
     component: () => import('@/views/DashboardView.vue'),
   },
@@ -57,14 +53,6 @@ const routes = [
   },
   {
     meta: {
-      title: 'Create',
-    },
-    path: '/create',
-    name: 'Create',
-    component: () => import('@/views/CreateView.vue'),
-  },
-  {
-    meta: {
       title: 'Update',
     },
     path: '/update',
@@ -80,6 +68,32 @@ const routes = [
     component: () => import('@/views/ArticleListView.vue'),
   },
   {
+    meta: {
+      title: 'Recommend',
+    },
+    path: '/recommend',
+    name: 'RecommendView',
+    component: () => import('@/views/RecommendView.vue'),
+  },
+  {
+    meta: { title: 'Jobs' },
+    path: '/jobs',
+    name: 'JobsView',
+    component: () => import('@/views/JobsView.vue'),
+  },
+  {
+    meta: { title: 'My Favorites' },
+    path: '/favorites',
+    name: 'MyFavorites',
+    component: () => import('@/views/MyFavoritesView.vue'),
+  },
+  {
+    meta: { title: 'Company Detail' },
+    path: '/companies/:id',
+    name: 'CompanyDetail',
+    component: () => import('@/views/CompanyDetailView.vue'),
+  },
+  {
     path: '/articles/:id',
     name: 'ArticleDetail',
     component: () => import('@/views/ArticleDetailView.vue'),
@@ -89,16 +103,6 @@ const routes = [
     name: 'ArticleEdit',
     component: () => import('@/views/ArticleEditView.vue'),
   }
-<<<<<<< HEAD
-=======
-  ,
-  {
-    meta: { title: '기업 추천' },
-    path: '/recommend',
-    name: 'recommend',
-    component: () => import('@/views/RecommendView.vue'),
-  }
->>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
 ]
 
 const router = createRouter({

@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref, computed } from 'vue'
 import { useMainStore } from '@/stores/main'
-import { mdiAccount, mdiMail, mdiAsterisk, mdiFormTextboxPassword, mdiGithub } from '@mdi/js'
+import { mdiAccount, mdiMail, mdiAsterisk, mdiFormTextboxPassword, mdiGithub, mdiPhone } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
 import BaseDivider from '@/components/BaseDivider.vue'
@@ -22,33 +22,34 @@ const mainStore = useMainStore()
 
 const avatarFile = ref(null)
 const selectedAvatar = ref(null)
+const selectedAvatarPreview = ref(null)
 
 const onAvatarChange = (file) => {
   // clear
   if (!file) {
-    if (mainStore.userAvatarUrl && mainStore.userAvatarUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(mainStore.userAvatarUrl)
+    if (selectedAvatarPreview.value && selectedAvatarPreview.value.startsWith('blob:')) {
+      URL.revokeObjectURL(selectedAvatarPreview.value)
     }
     selectedAvatar.value = null
-    mainStore.userAvatarUrl = null
+    selectedAvatarPreview.value = null
     return
   }
 
   // revoke previous blob preview
-  if (mainStore.userAvatarUrl && mainStore.userAvatarUrl.startsWith('blob:')) {
-    URL.revokeObjectURL(mainStore.userAvatarUrl)
+  if (selectedAvatarPreview.value && selectedAvatarPreview.value.startsWith('blob:')) {
+    URL.revokeObjectURL(selectedAvatarPreview.value)
   }
 
   selectedAvatar.value = file // keep File for upload
   const url = URL.createObjectURL(file)
-  mainStore.userAvatarUrl = url // show preview app-wide
-  accountStore.avatar = url // optional: keep preview in accountStore for persisted components
+  selectedAvatarPreview.value = url // show preview locally
 
-  console.log('선택된 아바타:', file, url)
+  console.log('선택된 아바타(미저장 프리뷰):', file, url)
 }
 
 const avatarPreview = computed(() => {
-  return mainStore.userAvatarUrl || null
+  // prefer unsaved local preview, otherwise use store value
+  return selectedAvatarPreview.value || mainStore.userAvatarUrl || null
 })
 
 const uploadAvatar = async () => {
@@ -68,9 +69,9 @@ const uploadAvatar = async () => {
       }
     )
 
-    // revoke blob preview if present
-    if (mainStore.userAvatarUrl && mainStore.userAvatarUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(mainStore.userAvatarUrl)
+    // revoke local blob preview if present
+    if (selectedAvatarPreview.value && selectedAvatarPreview.value.startsWith('blob:')) {
+      URL.revokeObjectURL(selectedAvatarPreview.value)
     }
 
     // sync stores with server value (res.data.avatar expected to be server path)
@@ -79,6 +80,7 @@ const uploadAvatar = async () => {
     })
     accountStore.avatar = res.data.avatar
     selectedAvatar.value = null
+    selectedAvatarPreview.value = null
 
     alert('아바타가 변경되었습니다.')
   } catch (e) {
@@ -91,7 +93,7 @@ const uploadAvatar = async () => {
 
 
 const profileForm = reactive({
-  name: accountStore.userName,
+  nickname: '',
   email: '',
   phonenumber : mainStore.userPhonenumber || '',
   gender : mainStore.userGender || '',
@@ -113,7 +115,7 @@ const submitProfile = async () => {
     const res = await axios.patch(
       'http://127.0.0.1:8000/accounts/user/',
       {
-        username: profileForm.name,   // ⭐ 필수
+        nickname: profileForm.nickname,
         email: profileForm.email,
         phone_number: profileForm.phonenumber,
         gender: profileForm.gender,
@@ -127,9 +129,11 @@ const submitProfile = async () => {
     )
 
     // 프론트 store 동기화
+    // update nickname display and stores
+    accountStore.nickname = res.data.nickname || ''
     accountStore.userName = res.data.username
     mainStore.setUser({
-      name: res.data.username,
+      name: res.data.nickname || res.data.username,
       email: res.data.email,
     })
 
@@ -235,7 +239,7 @@ onMounted(async () => {
     )
 
     // 1️⃣ form 채우기
-    profileForm.name = res.data.username
+    profileForm.nickname = res.data.nickname || res.data.username
     profileForm.email = res.data.email
     profileForm.phonenumber = res.data.phone_number || ''
     profileForm.gender = res.data.gender || ''
@@ -243,8 +247,9 @@ onMounted(async () => {
 
     // 2️⃣ store 동기화 (중요)
     accountStore.userName = res.data.username
+    accountStore.nickname = res.data.nickname || ''
     mainStore.setUser({
-      name: res.data.username,
+      name: res.data.nickname || res.data.username,
       email: res.data.email,
       userPhonenumber: res.data.phone_number,
       userGender: res.data.gender,
@@ -261,102 +266,139 @@ onMounted(async () => {
   <LayoutAuthenticated>
     <SectionMain>
       <SectionTitleLineWithButton :icon="mdiAccount" title="Profile" main>
-        <BaseButton
-          href="https://github.com/justboil/admin-one-vue-tailwind"
-          target="_blank"
-          :icon="mdiGithub"
-          label="Star on GitHub"
-          color="contrast"
-          rounded-full
-          small
-        />
+
       </SectionTitleLineWithButton>
 
       <UserCard class="mb-6" />
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <CardBox is-form @submit.prevent="submitProfile">
-          <FormField label="Avatar" help="Max 500kb">
-            <FormFilePicker
-              label="Upload"
-              v-model="selectedAvatar"
-              accept="image/*"
-              @update:model-value="onAvatarChange"
-            />
-            <!-- ✅ 미리보기 영역 -->
-            <div v-if="avatarPreview" class="mt-3">
-              <img
-                :src="avatarPreview"
-                class="w-32 h-32 rounded-full object-cover object-center border"
-                style="width:128px;height:128px;"
+        <!-- Left column: avatar + nickname -->
+        <div>
+          <CardBox class="mb-4 flex flex-col items-center">
+            <FormField label="Avatar" help="Max 500kb">
+              <FormFilePicker
+                label="Upload"
+                v-model="selectedAvatar"
+                accept="image/*"
+                @update:model-value="onAvatarChange"
               />
-            </div>
-          </FormField>
-          <button class="mt-2 px-4 py-1 bg-blue-500 text-white rounded"
-          @click="uploadAvatar">
-            아바타 저장
-          </button>
+              <div v-if="avatarPreview" class="mt-3">
+                <img
+                  :src="avatarPreview"
+                  class="w-32 h-32 rounded-full object-cover object-center border"
+                  style="width:128px;height:128px;"
+                />
+              </div>
+            </FormField>
+            <button class="mt-2 px-4 py-1 bg-blue-500 text-white rounded" @click="uploadAvatar">
+              아바타 저장
+            </button>
+          </CardBox>
 
-          <FormField label="Name" help="Required. Your name">
-            <FormControl
-              v-model="profileForm.name"
-              :icon="mdiAccount"
-              name="username"
-              required
-              autocomplete="username"
-            />
-          </FormField>
-          
-          <FormField label="E-mail" help="Required. Your e-mail">
-            <FormControl
-              :key="profileForm.email"
-              v-model="profileForm.email"
-              :icon="mdiMail"
-              type="text"
-              name="email"
-              required
-              autocomplete="email"
-            />
-          </FormField>
+          <CardBox is-form @submit.prevent="submitProfile">
+            <FormField label="Nickname" help="표시될 별명입니다">
+              <FormControl
+                v-model="profileForm.nickname"
+                :icon="mdiAccount"
+                name="nickname"
+                autocomplete="nickname"
+              />
+            </FormField>
+            <template #footer>
+              <BaseButtons>
+                <BaseButton color="info" type="submit" label="닉네임 저장" />
+              </BaseButtons>
+            </template>
+          </CardBox>
+        </div>
 
-          <FormField label="Phone-number" help="-를 제외하고 입력해주세요">
-            <FormControl
-              v-model="profileForm.phonenumber"
-              :icon="mdiphone"
-              type="tel"
-              name="phonenumber"
-              required
-              autocomplete="tel"
-              placeholder="예: 01012345678"
-            />
-          </FormField>
+        <!-- Right column: password box -->
+        <div>
+          <CardBox is-form @submit.prevent="submitPass">
+            <FormField label="현재 비밀번호" help="Required. Your current password">
+              <FormControl
+                v-model="passwordForm.password_current"
+                :icon="mdiAsterisk"
+                name="password_current"
+                type="password"
+                required
+                autocomplete="current-password"
+              />
+            </FormField>
 
-          <FormField label="Gender" help="Required. Please select your gender.">
-            <div class="gender-options">
-              <!-- 남자 라디오 버튼 -->
-              <label>
-                <input 
-                  type="radio"
-                  v-model="profileForm.gender"
-                  value="male"
-                  name="gender"
-                  required
-                >
-                남자
-              </label>
-              <!-- 여자 라디오 버튼 -->
-              <label>
-                <input type="radio" 
+            <BaseDivider />
+
+            <FormField label="새 비밀번호" help="Required. New password">
+              <FormControl
+                v-model="passwordForm.password"
+                :icon="mdiFormTextboxPassword"
+                name="password"
+                type="password"
+                required
+                autocomplete="new-password"
+              />
+            </FormField>
+
+            <FormField label="비밀번호 확인" help="Required. New password one more time">
+              <FormControl
+                v-model="passwordForm.password_confirmation"
+                :icon="mdiFormTextboxPassword"
+                name="password_confirmation"
+                type="password"
+                required
+                autocomplete="new-password"
+              />
+            </FormField>
+            <BaseButton type="submit" color="info" label="비밀번호 변경" />
+          </CardBox>
+        </div>
+      </div>
+
+      <!-- Full-width profile details form -->
+      <CardBox is-form @submit.prevent="submitProfile" class="mt-6">
+        <FormField label="E-mail" help="선택 사항">
+          <FormControl
+            :key="profileForm.email"
+            v-model="profileForm.email"
+            :icon="mdiMail"
+            type="text"
+            name="email"
+            autocomplete="email"
+          />
+        </FormField>
+        <FormField label="Phone-number" help="선택 사항 - `-` 제외">
+          <FormControl
+            v-model="profileForm.phonenumber"
+            :icon="mdiPhone"
+            type="tel"
+            name="phonenumber"
+            autocomplete="tel"
+            placeholder="예: 01012345678"
+          />
+        </FormField>
+        <FormField label="Gender" help="선택 사항">
+          <div class="gender-options">
+            <label>
+              <input
+                type="radio"
                 v-model="profileForm.gender"
-                value ="female" 
+                value="male"
                 name="gender"
-                required>
-                여자
-              </label>
-            </div>
-          </FormField>
-          <BaseDivider />
-          <FormField label="Interest" help="취업 희망 분야를 선택해주세요">
+              >
+              남자
+            </label>
+            <label>
+              <input type="radio"
+                v-model="profileForm.gender"
+                value="female"
+                name="gender"
+              >
+              여자
+            </label>
+          </div>
+        </FormField>
+        <BaseDivider />
+        <FormField label="Interest" help="선택 사항 - 관심분야를 선택하세요(선택적)">
             <div>
               <!-- 선택된 관심 분야 표시 -->
               <div
@@ -435,55 +477,8 @@ onMounted(async () => {
         </CardBox>
 
 
-        <CardBox is-form @submit.prevent="submitPass">
-          <FormField label="현재 비밀번호" help="Required. Your current password">
-            <FormControl
-              v-model="passwordForm.password_current"
-              :icon="mdiAsterisk"
-              name="password_current"
-              type="password"
-              required
-              autocomplete="current-password"
-            />
-          </FormField>
-
-          <BaseDivider />
-
-          <FormField label="새 비밀번호" help="Required. New password">
-            <FormControl
-              v-model="passwordForm.password"
-              :icon="mdiFormTextboxPassword"
-              name="password"
-              type="password"
-              required
-              autocomplete="new-password"
-            />
-          </FormField>
-
-          <FormField label="비밀번호 확인" help="Required. New password one more time">
-            <FormControl
-              v-model="passwordForm.password_confirmation"
-              :icon="mdiFormTextboxPassword"
-              name="password_confirmation"
-              type="password"
-              required
-              autocomplete="new-password"
-            />
-          </FormField>
-          <BaseButton type="submit" color="info" label="Submit" />
-          
-          <BaseDivider />
-          
-        
-          <!-- <template #footer>
-            <BaseButtons>
-              <BaseButton type="submit" color="info" label="Submit" />
-              <BaseButton color="info" label="Options" outline />
-            </BaseButtons>
-          </template> -->
-        </CardBox>
-      </div>
-      <CardBox>
+      
+      <CardBox style="margin-top:10px">
         <h2 class="text-lg font-semibold text-red-600 mb-4">
           회원탈퇴
         </h2>

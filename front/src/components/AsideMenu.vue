@@ -10,6 +10,7 @@ defineProps({
   menuBottom: Array,
   isAsideMobileExpanded: Boolean,
   isAsideLgActive: Boolean,
+  isAsideCollapsed: Boolean,
 })
 
 const emit = defineEmits(['menu-click', 'aside-lg-close-click'])
@@ -27,12 +28,14 @@ const asideLgCloseClick = (event) => {
   <AsideMenuLayer
     :menu="menu"
     :menu-bottom="menuBottom"
+    :is-collapsed="isAsideCollapsed"
     :class="[
       isAsideMobileExpanded ? 'left-0' : '-left-60 lg:left-0',
       { 'lg:hidden xl:flex': !isAsideLgActive },
     ]"
     @menu-click="menuClick"
     @aside-lg-close-click="asideLgCloseClick"
+    @aside-collapse-toggle="$emit('aside-collapse-toggle')"
   />
   <OverlayLayer v-if="isAsideLgActive" z-index="z-30" @overlay-click="asideLgCloseClick" />
 </template>

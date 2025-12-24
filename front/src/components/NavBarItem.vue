@@ -35,7 +35,12 @@ const componentClass = computed(() => {
     isDropdownActive.value
       ? `navbar-item-label-active dark:text-slate-400`
       : `navbar-item-label dark:text-white dark:hover:text-slate-400`,
-    props.item.menu ? 'lg:py-2 lg:px-3' : 'py-2 px-3',
+    // use 1.5x horizontal padding for the right hamburger button
+    props.item.menu
+      ? 'lg:py-2 lg:px-3'
+      : props.item.isRightHamburger
+      ? 'py-2 px-[1.125rem]'
+      : 'py-2 px-3',
   ]
 
   if (props.item.isDesktopNoLabel) {
@@ -129,8 +134,11 @@ const darkModeStore = useDarkModeStore()
     </div>
     <div
       v-if="item.menu"
-      class="border-b border-gray-100 text-sm lg:absolute lg:top-full lg:left-0 lg:z-20 lg:min-w-full lg:rounded-lg lg:border lg:bg-white lg:shadow-lg dark:border-slate-700 lg:dark:bg-slate-800"
-      :class="{ 'lg:hidden': !isDropdownActive }"
+      class="border-b border-gray-100 text-sm lg:absolute lg:top-full lg:left-0 lg:z-20 lg:rounded-lg lg:border lg:bg-white lg:shadow-lg dark:border-slate-700 lg:dark:bg-slate-800"
+      :class="[
+        { 'lg:hidden': !isDropdownActive },
+        item.isRightHamburger ? 'lg:min-w-[150%]' : 'lg:min-w-full',
+      ]"
     >
       <NavBarMenuList :menu="item.menu" @menu-click="menuClickDropdown" />
     </div>

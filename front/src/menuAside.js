@@ -17,27 +17,27 @@ import {
 export const menuAsideMainLogin = [
   {
     label: '대시보드',
-    // icon: mdiViewDashboard,
+    icon: mdiMonitor,
     to: '/',
   },
   {
     label: '프로필',
-    // icon: mdiClipboardText,
+    icon: mdiAccountCircle,
     to: '/profile',
   },
   {
     label: '게시글',
-    // icon: mdiClipboardText,
+    icon: mdiViewList,
     to: '/articlelist',
   },
   {
-    label: '글 작성',
-    // icon: mdiPencil,
-    to: '/create',
+    label: '내 관심 기업',
+    icon: mdiViewList,
+    to: '/favorites',
   },
   {
-    label: 'Logout',
-    // icon: mdiLogout,
+    label: '로그아웃',
+    icon: mdiLogout,
     isLogout: true,
     to: '/dashboard',
   },
@@ -47,12 +47,12 @@ export const menuAsideMainLogin = [
 export const menuAsideMainLogout = [
   {
     label: '로그인',
-    // icon: mdiLogin,
+    icon: mdiLock,
     to: '/login',
   },
   {
     label: '회원가입',
-    // icon: mdiAccountPlus,
+    icon: mdiAccountCircle,
     to: '/signup',
   },
 ]

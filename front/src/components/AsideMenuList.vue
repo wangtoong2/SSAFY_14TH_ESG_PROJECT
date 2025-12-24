@@ -7,6 +7,7 @@ defineProps({
     type: Array,
     required: true,
   },
+  isCollapsed: Boolean,
 })
 
 const emit = defineEmits(['menu-click'])
@@ -23,6 +24,7 @@ const menuClick = (event, item) => {
       :key="index"
       :item="item"
       :is-dropdown-list="isDropdownList"
+      :is-collapsed="isCollapsed"
       @menu-click="menuClick"
     />
   </ul>

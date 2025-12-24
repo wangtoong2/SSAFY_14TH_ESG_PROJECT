@@ -22,11 +22,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from rest_framework import status
-<<<<<<< HEAD
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
-=======
->>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
+from django.core.exceptions import ValidationError
+import logging
+
+logger = logging.getLogger(__name__)
 
 @api_view(['DELETE'])
 @authentication_classes([TokenAuthentication])
@@ -48,25 +49,34 @@ def withdraw_user(request):
         {'detail': '회원 탈퇴가 완료되었습니다.'},
         status=status.HTTP_200_OK
     )
-<<<<<<< HEAD
 
 @api_view(['POST'])
+@authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def change_password(request):
     user = request.user
 
+    logger.debug('change_password called; user=%s, authenticated=%s', getattr(user, 'pk', None), user.is_authenticated if hasattr(user, 'is_authenticated') else None)
+    logger.debug('request.data keys: %s', list(request.data.keys()))
+
     old_password = request.data.get('old_password')
     new_password = request.data.get('new_password')
+
+    if not old_password or not new_password:
+        return Response({'detail': 'old_password and new_password are required.'}, status=400)
 
     if not user.check_password(old_password):
         return Response({'detail': '현재 비밀번호가 틀렸습니다.'}, status=400)
 
-    validate_password(new_password, user)
+    try:
+        validate_password(new_password, user)
+    except ValidationError as e:
+        return Response({'detail': e.messages}, status=400)
 
     user.set_password(new_password)
     user.save()
 
-    return Response({'detail': '비밀번호 변경 완료'})
+    return Response({'detail': '비밀번호 변경 완료'}, status=200)
 
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
@@ -83,5 +93,3 @@ def avatar_update(request):
     return Response({
         'avatar': user.avatar.url
     })
-=======
->>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e

@@ -12,6 +12,7 @@ const props = defineProps({
     required: true,
   },
   isDropdownList: Boolean,
+  isCollapsed: Boolean,
 })
 
 const emit = defineEmits(['menu-click'])
@@ -26,9 +27,10 @@ const isDropdownActive = ref(false)
 
 const componentClass = computed(() => [
   props.isDropdownList ? 'py-3 px-6 text-sm' : 'py-3',
+  props.isCollapsed ? 'justify-center px-0' : '',
   hasColor.value
     ? getButtonColor(props.item.color, false, true)
-    : `aside-menu-item dark:text-slate-300 dark:hover:text-white`,
+    : `aside-menu-item text-blue-600 hover:text-blue-800 dark:text-slate-300 dark:hover:text-white`,
 ])
 
 const hasDropdown = computed(() => !!props.item.menu)
@@ -63,6 +65,7 @@ const menuClick = (event) => {
         :size="18"
       />
       <span
+        v-show="!isCollapsed"
         class="line-clamp-1 grow text-ellipsis"
         :class="[
           { 'pr-6': !hasDropdown },
@@ -71,7 +74,7 @@ const menuClick = (event) => {
         >{{ item.label }}</span
       >
       <BaseIcon
-        v-if="hasDropdown"
+        v-if="hasDropdown && !isCollapsed"
         :path="isDropdownActive ? mdiMinus : mdiPlus"
         class="flex-none"
         :class="[vSlot && vSlot.isExactActive ? asideMenuItemActiveStyle : '']"

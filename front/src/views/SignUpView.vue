@@ -13,6 +13,7 @@ const accountStore = useAccountStore()
 // 1) 상태: form 하나로 통일
 const form = reactive({
   username: '',
+  nickname: '',
   password1: '',
   password2: '',
   name: '',
@@ -26,6 +27,8 @@ const errors = computed(() => {
   const e = {}
 
   if (!form.username.trim()) e.username = '아이디를 입력하세요.'
+  // nickname optional but limit length
+  if (form.nickname && form.nickname.length > 30) e.nickname = '닉네임은 30자 이하로 입력하세요.'
   if (!form.password1) e.password1 = '비밀번호를 입력하세요.'
   if (form.password1 && form.password1.length < 8) e.password1 = '비밀번호는 8자 이상 권장입니다.'
   if (!form.password2) e.password2 = '비밀번호 확인을 입력하세요.'
@@ -58,6 +61,7 @@ const signUp = async () => {
   try {
     await accountStore.signUp({
       username: form.username.trim(),
+      nickname: form.nickname.trim(),
       password1: form.password1,
       password2: form.password2,
       // 확장 필드(백엔드에서 받을 때 사용):
@@ -83,6 +87,7 @@ const signUp = async () => {
   <LayoutGuest>
     <SectionFullScreen class="login-bg-soft">
       <CardBox class="login-card">
+        <img src="/jobffy_logo.png" alt="logo" class="auth-logo" />
         <h1 class="signup-title">회원가입</h1>
 
         <!-- 폼은 하나만 -->
@@ -99,6 +104,20 @@ const signUp = async () => {
             />
             <p v-if="errors.username" class="mt-1 text-sm text-red-500">{{ errors.username }}</p>
           </div>
+
+            <!-- 닉네임 -->
+            <div>
+              <label for="nickname" class="block mb-2 font-semibold">닉네임 (표시명)</label>
+              <input
+                id="nickname"
+                type="text"
+                v-model.trim="form.nickname"
+                autocomplete="nickname"
+                class="w-full px-3 py-2 border rounded"
+                placeholder="표시될 닉네임을 입력하세요."
+              />
+              <p v-if="errors.nickname" class="mt-1 text-sm text-red-500">{{ errors.nickname }}</p>
+            </div>
 
           <!-- 비밀번호 -->
           <div>
@@ -197,6 +216,7 @@ const signUp = async () => {
               v-model.trim="form.email"
               autocomplete="email"
               class="w-full px-3 py-2 border rounded"
+              placeholder="선택"
             />
             <p v-if="errors.email" class="mt-1 text-sm text-red-500">{{ errors.email }}</p>
           </div>
@@ -209,6 +229,9 @@ const signUp = async () => {
           >
             회원가입
           </button>
+          <div class="text-center mt-3">
+            <router-link :to="{ name: 'dashboard' }" class="text-sm text-slate-600 hover:underline">메인으로</router-link>
+          </div>
         </form>
       </CardBox>
     </SectionFullScreen>
@@ -222,5 +245,12 @@ const signUp = async () => {
   font-weight: 700;
   margin-bottom: 24px;
   color: #111;
+}
+
+.auth-logo {
+  display: block;
+  width: 140px;
+  height: auto;
+  margin: 0 auto 12px auto;
 }
 </style>

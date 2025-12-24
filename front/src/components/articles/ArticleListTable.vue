@@ -118,23 +118,23 @@ const getDepartmentName = (article) => {
   return '미분류';
 };
 
-onMounted(async () => {
-  // 1. 게시글 목록만 가져옵니다 (부서 목록 가져오던 복잡한 로직은 모두 삭제)
+const fetchArticles = async () => {
   try {
     const res = await axios.get(`${API_URL}/articles/`)
-    
-    // 2. 데이터가 배열인지 확인하고 정렬하여 저장
-    // (b.id - a.id)로 정렬하면 최신글이 맨 위로 올라옵니다.
-    articles.value = Array.isArray(res.data) 
-      ? res.data.sort((a, b) => b.id - a.id) 
+    articles.value = Array.isArray(res.data)
+      ? res.data.sort((a, b) => b.id - a.id)
       : []
-      
     console.log('게시글 불러오기 성공:', articles.value)
   } catch (e) {
     articles.value = []
     console.error('Failed to load articles', e)
   }
-})
+}
+
+onMounted(fetchArticles)
+
+// expose for parent refresh
+defineExpose({ fetchArticles })
 
 const deleteArticle = async (id) => {
   const ok = confirm('정말 삭제하시겠습니까?')

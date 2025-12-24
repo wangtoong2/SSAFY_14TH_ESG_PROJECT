@@ -1,6 +1,41 @@
 from rest_framework import serializers
 
 from .models import CorporateDisclosure
+from .models import CompanyComment
+from rest_framework import serializers
+
+
+class CompanyCommentSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    likes_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CompanyComment
+        fields = (
+            'id',
+            'content',
+            'user',
+            'created_at',
+            'updated_at',
+            'likes_count',
+            'is_liked',
+        )
+
+    def get_likes_count(self, obj):
+        return obj.comment_likes.count()
+
+    def get_is_liked(self, obj):
+        request = self.context.get('request')
+        if request and getattr(request, 'user', None) and request.user.is_authenticated:
+            return obj.comment_likes.filter(user=request.user).exists()
+        return False
+
+    def get_user(self, obj):
+        u = getattr(obj, 'user', None)
+        if not u:
+            return ''
+        return getattr(u, 'nickname', None) or getattr(u, 'username', '')
 
 
 class PreferencesSerializer(serializers.Serializer):

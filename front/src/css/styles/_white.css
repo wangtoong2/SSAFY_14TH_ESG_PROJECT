@@ -34,4 +34,38 @@
       @apply from-white via-gray-100 to-white;
     }
   }
+  /* explicit dark-mode rules for white theme so sidebar stays styled in dark mode */
+  .dark {
+    .aside {
+      @apply bg-white;
+    }
+    .aside-scrollbar {
+      @apply scrollbar-styled-dark;
+    }
+    .aside-menu-item {
+      @apply text-blue-200 hover:text-white;
+    }
+    .aside-menu-item-active {
+      @apply text-blue-200 font-bold;
+    }
+    .aside-menu-dropdown {
+      @apply bg-slate-800/75;
+    }
+    .navbar-item-label {
+      @apply text-blue-200;
+    }
+    .overlay {
+      @apply from-slate-800 via-slate-900 to-slate-800;
+    }
+    /* Ensure card boxes (including tables) show a dark background in white theme when dark mode is active */
+    .card-box {
+      @apply bg-slate-900/70;
+    }
+    .card-box-body {
+      @apply bg-transparent;
+    }
+    .card-box table {
+      @apply bg-transparent;
+    }
+  }
 }

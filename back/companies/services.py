@@ -13,11 +13,6 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-
-
-
-
-
 # =========================================================
 # GPT Rerank Function (GMS API)
 # =========================================================
@@ -312,3 +307,7 @@ def recommend_companies(prefs, top_n=10):
 
     results.sort(key=lambda x: x['score'], reverse=True)
     return results[:top_n]
+
+
+def build_fixed_companyprofile_payload():
+    pass

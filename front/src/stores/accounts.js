@@ -12,6 +12,7 @@ export const useAccountStore = defineStore(
     const API_URL = 'http://127.0.0.1:8000'
     const token = ref(null)
     const userName = ref('')
+    const nickname = ref('')
     const router = useRouter()
     const avatar = ref(null)
 
@@ -23,7 +24,7 @@ export const useAccountStore = defineStore(
         .then((userRes) => {
           const mainStore = useMainStore()
           mainStore.setUser({
-            name: userRes.data.username,
+            name: userRes.data.nickname || userRes.data.username,
             email: userRes.data.email,
             userPhonenumber: userRes.data.phone_number,
             userGender: userRes.data.gender,
@@ -31,6 +32,7 @@ export const useAccountStore = defineStore(
           })
 
           userName.value = userRes.data.username
+          nickname.value = userRes.data.nickname || ''
           avatar.value = userRes.data.avatar
         })
         .catch((err) => {
@@ -40,13 +42,14 @@ export const useAccountStore = defineStore(
 
     /* ================= 회원가입 ================= */
     const signUp = async (payload) => {
-      const { username, password1, password2 } = payload
+      const { username, password1, password2, nickname: pNickname } = payload
 
       try {
         await axios.post(`${API_URL}/accounts/registration/`, {
           username,
           password1,
           password2,
+          nickname: pNickname,
         })
 
         // 회원가입 후 자동 로그인
@@ -72,13 +75,14 @@ export const useAccountStore = defineStore(
 
       const mainStore = useMainStore()
       mainStore.setUser({
-        name: userRes.data.username,
+        name: userRes.data.nickname || userRes.data.username,
         email: userRes.data.email,
         avatar: userRes.data.avatar,
       })
 
       // persist these in this store so avatar & name survive logout/login cycles
       userName.value = userRes.data.username
+      nickname.value = userRes.data.nickname || ''
       avatar.value = userRes.data.avatar
 
       router.push({ name: 'dashboard' })
@@ -109,6 +113,7 @@ export const useAccountStore = defineStore(
     const logOut = () => {
       token.value = null
       userName.value = ''
+      nickname.value = ''
       avatar.value = null
 
       delete axios.defaults.headers.common.Authorization
@@ -153,6 +158,7 @@ export const useAccountStore = defineStore(
       withdraw,
       token,
       userName,
+      nickname,
       isLogin,
       avatar
     }

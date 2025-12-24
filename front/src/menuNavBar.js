@@ -4,15 +4,28 @@ import {
   mdiEmail,
   mdiLogout,
   mdiThemeLightDark,
+  mdiMenu,
+  mdiViewList,
 } from '@mdi/js'
 
 import { useAccountStore } from '@/stores/accounts'
-
 
 export default [
   {
     icon: mdiThemeLightDark,
     isToggleLightDark: true,
+  },
+  {
+    icon: mdiMenu,
+    label: 'Menu',
+    menu: [
+      { icon: mdiAccount, label: '프로필', to: '/profile' },
+      { icon: mdiViewList, label: '내 관심기업', to: '/favorites' },
+      { isDivider: true },
+      { icon: mdiLogout, label: '로그아웃', isLogout: true },
+    ],
+    // mark this as the right-side hamburger so navbar item can style it specially
+    isRightHamburger: true,
   },
 ]
 
