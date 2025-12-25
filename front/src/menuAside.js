@@ -23,7 +23,7 @@ export const menuAsideMainLogin = [
   {
     label: '프로필',
     icon: mdiAccountCircle,
-    to: '/profile',
+    to: '/profile/edit',
   },
   {
     label: '게시글',

@@ -91,6 +91,39 @@ export const useAccountStore = defineStore(
     }
   }
 
+    /* ================= 소셜 로그인 (Google) ================= */
+
+    const socialLogInGoogle = async ({ accessToken }) => {
+      if (!accessToken) return
+
+      try {
+        const res = await axios.post(`${API_URL}/accounts/google/`, {
+          access_token: accessToken,
+        })
+
+        token.value = res.data.key
+        axios.defaults.headers.common.Authorization = `Token ${token.value}`
+
+        const userRes = await axios.get(`${API_URL}/accounts/user/`)
+
+        const mainStore = useMainStore()
+        mainStore.setUser({
+          name: userRes.data.nickname || userRes.data.username,
+          email: userRes.data.email,
+          avatar: userRes.data.avatar,
+        })
+
+        userName.value = userRes.data.username
+        nickname.value = userRes.data.nickname || ''
+        avatar.value = userRes.data.avatar
+
+        router.push({ name: 'dashboard' })
+      } catch (err) {
+        console.error(err.response?.data || err)
+        alert('Google 소셜 로그인에 실패했습니다.')
+      }
+    }
+
 
 
     /* ================= 로그인 상태 ================= */
@@ -154,6 +187,7 @@ export const useAccountStore = defineStore(
     return {
       signUp,
       logIn,
+      socialLogInGoogle,
       logOut,
       withdraw,
       token,

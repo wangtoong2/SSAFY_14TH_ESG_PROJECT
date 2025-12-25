@@ -15,7 +15,10 @@
             </div>
             <div>
               <button
-                class="px-3 py-1 border rounded bg-white hover:bg-gray-50"
+                class="px-3 py-1 rounded border text-sm font-medium transition select-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400/40 dark:focus:ring-white/20"
+                :class="isFavorited
+                  ? 'bg-white text-slate-900 border-slate-900 hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-900 dark:hover:bg-slate-800'
+                  : 'bg-white text-slate-900 border-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600 dark:hover:bg-slate-700'"
                 @click="toggleFavorite"
               >
                 <span v-if="isFavorited">❤️ 관심기업</span>
@@ -28,21 +31,51 @@
         <div>
           <CardBox class="mb-4">
             <h4 class="font-medium">요약</h4>
-            <pre class="whitespace-pre-wrap bg-gray-50 p-3 rounded text-sm text-gray-800">{{ prettyOverview }}</pre>
+            <div class="whitespace-pre-wrap bg-slate-50 dark:bg-slate-900/40 p-3 rounded text-sm text-slate-800 dark:text-slate-200">{{ prettyOverview }}</div>
           </CardBox>
         </div>
         <!-- 댓글 섹션 -->
         <div class="lg:col-span-2">
-          <CardBox class="mb-4">
+          <CardBox class="mb-4 relative">
             <h4 class="font-medium">댓글</h4>
+
+            <div
+              v-if="!accountStore.isLogin"
+              class="absolute inset-0 z-10 rounded bg-white/90 dark:bg-slate-800/90 flex items-center justify-center"
+            >
+              <div class="text-sm text-slate-700 dark:text-slate-200">로그인 후 확인 할 수 있습니다</div>
+            </div>
 
             <div v-for="comment in comments" :key="comment.id" class="border-b py-3">
               <div class="flex justify-between items-start">
                 <div class="flex items-start gap-3">
                   <img :src="comment.user?.avatar || null" alt="avatar" class="w-8 h-8 rounded" v-if="false" />
                   <div>
-                    <p class="text-sm text-gray-600">{{ comment.user || '익명' }} · {{ new Date(comment.created_at).toLocaleString() }}</p>
-                    <p class="mt-1 whitespace-pre-line">{{ comment.content }}</p>
+                    <p class="text-sm text-gray-600">
+                      <RouterLink
+                        v-if="commentUserUsername(comment)"
+                        :to="{ name: 'UserProfile', params: { username: commentUserUsername(comment) } }"
+                        class="hover:underline"
+                      >
+                        {{ commentUserDisplayName(comment) }}
+                      </RouterLink>
+                      <span v-else>{{ commentUserDisplayName(comment) }}</span>
+                      <span>· {{ new Date(comment.created_at).toLocaleString() }}</span>
+                    </p>
+                    <div class="mt-1">
+                      <p v-if="editingCommentId !== comment.id" class="whitespace-pre-line">{{ comment.content }}</p>
+                      <div v-else class="space-y-2">
+                        <textarea
+                          v-model="editingCommentContent"
+                          class="w-full border rounded p-2 bg-white dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
+                          rows="3"
+                        ></textarea>
+                        <div class="flex gap-2 text-sm">
+                          <button class="text-blue-500 hover:underline" @click="saveEditComment(comment)">저장</button>
+                          <button class="text-slate-500 hover:underline" @click="cancelEditComment">취소</button>
+                        </div>
+                      </div>
+                    </div>
                     <div class="mt-2 flex items-center gap-2 text-sm">
                       <button @click="toggleCommentLike(comment.id)" class="hover:underline">{{ comment.liked ? '❤️' : '🤍' }}</button>
                       <span>{{ comment.likes_count }}</span>
@@ -51,7 +84,13 @@
                 </div>
 
                 <div v-if="(comment.user && comment.user === accountStore.userName) || (comment.user && comment.user.username === accountStore.userName)" class="flex gap-2 text-sm">
-                  <button class="text-blue-500 hover:underline" @click="editComment(comment)">수정</button>
+                  <button
+                    v-if="editingCommentId !== comment.id"
+                    class="text-blue-500 hover:underline"
+                    @click="startEditComment(comment)"
+                  >
+                    수정
+                  </button>
                   <button class="text-red-500 hover:underline" @click="deleteComment(comment.id)">삭제</button>
                 </div>
               </div>
@@ -64,7 +103,7 @@
 
                   <div class="flex justify-end mt-2">
                     <button class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50" @click="createComment" :disabled="!accountStore.isLogin || !commentContent.trim()">댓글 작성</button>
-                    <button v-if="!accountStore.isLogin" class="ml-2 px-4 py-2 border rounded" @click="$router.push({ name: 'login' })">로그인</button>
+                    <!-- <button v-if="!accountStore.isLogin" class="ml-2 px-4 py-2 border rounded" @click="$router.push({ name: 'login' })">로그인</button> -->
                   </div>
                 </div>
               </div>
@@ -79,7 +118,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import { useAccountStore } from '@/stores/accounts'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -102,6 +141,42 @@ const comments = ref([])
 const commentContent = ref('')
 const isFavorited = ref(false)
 
+const normalizeCompanyComment = (c) => {
+  if (!c) return c
+  const liked = c.liked ?? c.is_liked ?? false
+  return {
+    ...c,
+    liked,
+    is_liked: c.is_liked ?? liked,
+    likes_count: c.likes_count ?? 0,
+  }
+}
+
+const commentUserUsername = (c) => {
+  if (!c?.user) return ''
+  if (typeof c.user === 'object') return c.user.username || ''
+  return String(c.user || '')
+}
+
+const commentUserDisplayName = (c) => {
+  if (!c) return '익명'
+  if (typeof c.user === 'object') return c.user.nickname || c.user.username || c.user.name || '익명'
+  return c.user || '익명'
+}
+
+const editingCommentId = ref(null)
+const editingCommentContent = ref('')
+
+const startEditComment = (comment) => {
+  editingCommentId.value = comment.id
+  editingCommentContent.value = comment.content
+}
+
+const cancelEditComment = () => {
+  editingCommentId.value = null
+  editingCommentContent.value = ''
+}
+
 // const prettyOverview = computed(() => {
 //   try {
 //     return JSON.stringify(data.value.company_overview || data.value.profile?.company_overview || {}, null, 2)
@@ -122,7 +197,8 @@ const prettyOverview = computed(() => {
 
   if (o.region) lines.push(`지역: ${o.region}`)
   if (o.addr || o.adres) lines.push(`주소: ${o.addr || o.adres}`)
-  if (o.industry_code) lines.push(`산업 코드: ${o.industry_code}`)
+  if (o.industry_category) lines.push(`산업 분류: ${o.industry_category}`)
+  else if (o.industry_code) lines.push(`산업 코드: ${o.industry_code}`)
   if (o.est_dt) {
     const y = o.est_dt.slice(0, 4)
     const m = o.est_dt.slice(4, 6)
@@ -195,15 +271,20 @@ const toggleFavorite = async () => {
 }
 
 onMounted(() => {
-  fetchComments()
+  if (accountStore.isLogin) {
+    fetchComments()
+  }
   fetchFavoriteState()
 })
 
 // fetch comments for company
 const fetchComments = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/companies/api/${id}/comments/`)
-    comments.value = res.data
+    const res = await axios.get(`${API_BASE}/companies/api/${id}/comments/`, {
+      headers: accountStore.token ? { Authorization: `Token ${accountStore.token}` } : {},
+    })
+    const list = Array.isArray(res.data) ? res.data : []
+    comments.value = list.map(normalizeCompanyComment)
   } catch (e) {
     console.error('Failed to fetch company comments', e)
     comments.value = []
@@ -238,14 +319,22 @@ const deleteComment = async (commentId) => {
 }
 
 const editComment = async (comment) => {
-  const newContent = prompt('댓글 수정', comment.content)
+  // legacy entry point: switch to inline editing
+  startEditComment(comment)
+}
+
+const saveEditComment = async (comment) => {
+  const newContent = editingCommentContent.value.trim()
   if (!newContent) return
-  await axios.patch(
+
+  const res = await axios.patch(
     `${API_BASE}/companies/api/comments/${comment.id}/update/`,
     { content: newContent },
     { headers: { Authorization: `Token ${accountStore.token}` } }
   )
-  await fetchComments()
+
+  Object.assign(comment, normalizeCompanyComment({ ...comment, ...res.data }))
+  cancelEditComment()
 }
 
 const toggleCommentLike = async (commentId) => {
@@ -258,17 +347,15 @@ const toggleCommentLike = async (commentId) => {
     const target = comments.value.find(c => c.id === commentId)
     if (target) {
       target.likes_count = res.data.likes_count ?? target.likes_count
-      target.liked = res.data.liked ?? !target.liked
+      const liked = res.data.liked ?? !target.liked
+      target.liked = liked
+      target.is_liked = res.data.is_liked ?? liked
     }
   } catch (err) {
     console.error(err)
     alert('댓글 좋아요 실패')
   }
 }
-
-onMounted(() => {
-  fetchComments()
-})
 </script>
 
 <style scoped>

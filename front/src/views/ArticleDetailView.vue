@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import axios from 'axios'
 import { useAccountStore } from '@/stores/accounts'
 
@@ -9,6 +9,7 @@ import SectionMain from '@/components/SectionMain.vue'
 import BaseButtons from '@/components/BaseButtons.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
+import CardBox from '@/components/CardBox.vue'
 
 /* ========================
    기본 설정
@@ -24,13 +25,54 @@ const article = ref(null)
 const comments = ref([])
 const commentContent = ref('')
 
+const normalizeComment = (c) => {
+  if (!c) return c
+  const liked = c.liked ?? c.is_liked ?? false
+  return {
+    ...c,
+    liked,
+    is_liked: c.is_liked ?? liked,
+    likes_count: c.likes_count ?? 0,
+  }
+}
+
+const normalizeArticle = (a) => {
+  if (!a) return a
+  const liked = a.liked ?? a.is_liked ?? false
+  return {
+    ...a,
+    liked,
+    is_liked: a.is_liked ?? liked,
+    likes_count: a.likes_count ?? 0,
+  }
+}
+
+const authHeaderOrEmpty = () => {
+  if (!accountStore?.token) return {}
+  return { Authorization: `Token ${accountStore.token}` }
+}
+
+const editingCommentId = ref(null)
+const editingCommentContent = ref('')
+
+const startEditComment = (comment) => {
+  editingCommentId.value = comment.id
+  editingCommentContent.value = comment.content
+}
+
+const cancelEditComment = () => {
+  editingCommentId.value = null
+  editingCommentContent.value = ''
+}
+
 /* ========================
    데이터 로드
 ======================== */
 onMounted(async () => {
-  console.log('mounted')
-  const res = await axios.get(`${API_URL}/articles/${route.params.id}/`)
-  article.value = res.data
+  const res = await axios.get(`${API_URL}/articles/${route.params.id}/`, {
+    headers: authHeaderOrEmpty(),
+  })
+  article.value = normalizeArticle(res.data)
 
   await fetchComments()
 })
@@ -47,8 +89,14 @@ const writerName = computed(() => article.value?.user ?? '')
 
 // 내 게시글 여부
 const isMyArticle = computed(() => {
-  if (!article.value || !accountStore.userName) return false
-  return article.value.user === accountStore.userName
+  if (!article.value) return false
+
+  const mine = [accountStore.userName, accountStore.nickname].filter(Boolean)
+  if (mine.length === 0) return false
+
+  const u = article.value.user
+  const author = typeof u === 'object' && u ? (u.nickname || u.username || u.name || '') : (u || '')
+  return mine.includes(author)
 })
 
 
@@ -56,6 +104,15 @@ const isMyArticle = computed(() => {
 const formattedDate = computed(() => {
   if (!article.value) return ''
   return new Date(article.value.created_at).toLocaleString()
+})
+
+const departmentLabel = computed(() => {
+  if (!article.value) return ''
+  return (
+    article.value.department_name ||
+    article.value.department?.name ||
+    ''
+  )
 })
 
 const authorAvatar = computed(() => {
@@ -73,6 +130,20 @@ const authorNameResolved = computed(() => {
   return article.value.user || article.value.author || ''
 })
 
+const authorUsernameResolved = computed(() => {
+  if (!article.value) return ''
+  const u = article.value.user
+  if (u && typeof u === 'object') return u.username || ''
+  return String(article.value.user || '')
+})
+
+const authorDisplayNameResolved = computed(() => {
+  if (!article.value) return ''
+  const u = article.value.user
+  if (u && typeof u === 'object') return u.nickname || u.username || u.name || ''
+  return String(article.value.user || article.value.author || '')
+})
+
 const commentAvatar = (c) => {
   if (!c) return null
   if (c.user && typeof c.user === 'object') return c.user.avatar || c.user.profile_image || null
@@ -85,13 +156,29 @@ const commentUserName = (c) => {
   return c.user || c.author || '익명'
 }
 
+const commentUserUsername = (c) => {
+  if (!c?.user) return ''
+  if (c.user && typeof c.user === 'object') return c.user.username || ''
+  return String(c.user || '')
+}
+
+const commentUserDisplayName = (c) => {
+  if (!c) return '익명'
+  if (c.user && typeof c.user === 'object') return c.user.nickname || c.user.username || c.user.name || '익명'
+  return c.user || c.author || '익명'
+}
+
 const isMyComment = (comment) => {
   if (!comment) return false
+  const mine = [accountStore.userName, accountStore.nickname].filter(Boolean)
+  if (mine.length === 0) return false
+
   if (comment.user) {
     if (typeof comment.user === 'object') {
-      return comment.user.username === accountStore.userName
+      const name = comment.user.nickname || comment.user.username || comment.user.name || ''
+      return mine.includes(name)
     }
-    return comment.user === accountStore.userName
+    return mine.includes(comment.user)
   }
   return false
 }
@@ -182,10 +269,11 @@ const createComment = async () => {
 
 // 댓글 불러오는 함수
 const fetchComments = async () => {
-  const res = await axios.get(
-    `${API_URL}/articles/${route.params.id}/comments/`
-  )
-  comments.value = res.data
+  const res = await axios.get(`${API_URL}/articles/${route.params.id}/comments/`, {
+    headers: authHeaderOrEmpty(),
+  })
+  const list = Array.isArray(res.data) ? res.data : []
+  comments.value = list.map(normalizeComment)
 }
 
 // 댓글 삭제 함수
@@ -208,10 +296,15 @@ const deleteComment = async (commentId) => {
 
 // 댓글 수정 함수
 const editComment = async (comment) => {
-  const newContent = prompt('댓글 수정', comment.content)
+  // legacy entry point: switch to inline editing
+  startEditComment(comment)
+}
+
+const saveEditComment = async (comment) => {
+  const newContent = editingCommentContent.value.trim()
   if (!newContent) return
 
-  await axios.patch(
+  const res = await axios.patch(
     `${API_URL}/articles/comments/${comment.id}/update/`,
     { content: newContent },
     {
@@ -221,7 +314,8 @@ const editComment = async (comment) => {
     }
   )
 
-  await fetchComments()
+  Object.assign(comment, normalizeComment({ ...comment, ...res.data }))
+  cancelEditComment()
 }
 
 const toggleCommentLike = async (commentId) => {
@@ -240,7 +334,9 @@ const toggleCommentLike = async (commentId) => {
     const target = comments.value.find(c => c.id === commentId)
     if (target) {
       target.likes_count = res.data.likes_count
-      target.liked = res.data.liked
+      const liked = res.data.liked ?? !target.liked
+      target.liked = liked
+      target.is_liked = res.data.is_liked ?? liked
     }
 
   } catch (err) {
@@ -257,54 +353,61 @@ const toggleCommentLike = async (commentId) => {
   <LayoutAuthenticated>
     <SectionMain>
       <div v-if="article" class="space-y-6">
+        <CardBox class="rounded-2xl">
+          <!-- 제목/분류/메타 -->
+          <div class="space-y-2">
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              {{ article.title }}
+            </h1>
 
-        <!-- 제목 -->
-        <h1 class="text-2xl font-bold">
-          {{ article.title }}
-        </h1>
+            <div v-if="departmentLabel" class="flex items-center gap-2">
+              <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                분류: {{ departmentLabel }}
+              </span>
+            </div>
 
-        <!-- 메타 정보: avatar + name -->
-        <p class="text-sm text-gray-500 flex items-center gap-2">
-          <UserAvatar :src="authorAvatar" :username="authorNameResolved" :size="24" />
-          <span>{{ authorNameResolved }} · {{ formattedDate }}</span>
-        </p>
+            <p class="text-sm text-slate-500 dark:text-slate-300 flex items-center gap-2">
+              <UserAvatar :src="authorAvatar" :username="authorNameResolved" :size="24" />
+              <RouterLink
+                v-if="authorUsernameResolved"
+                :to="{ name: 'UserProfile', params: { username: authorUsernameResolved } }"
+                class="hover:underline"
+              >
+                {{ authorDisplayNameResolved }}
+              </RouterLink>
+              <span v-else>{{ authorDisplayNameResolved }}</span>
+              <span>· {{ formattedDate }}</span>
+            </p>
+          </div>
 
-        <!-- 내용 -->
-        <div class="whitespace-pre-line border-t pt-4">
-          {{ article.content }}
-        </div>
+          <!-- 내용 -->
+          <div class="mt-5 whitespace-pre-line rounded-xl bg-slate-50 p-4 text-slate-800 dark:bg-slate-900/40 dark:text-slate-200">
+            {{ article.content }}
+          </div>
 
-        <!-- 게시글 좋아요 -->
-        <div class="flex items-center gap-2 mb-6">
-          <button 
-            class="px-3 py-1 border rounded hover:bg-gray-100"
-            @click="toggleArticleLike">
+          <!-- 좋아요 -->
+          <div class="mt-5 flex items-center gap-2">
+            <button
+              class="px-3 py-1 rounded-full border text-sm transition bg-white hover:bg-slate-50 text-slate-900 border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
+              @click="toggleArticleLike"
+            >
               {{ article.liked ? '❤️' : '🤍' }}
-          </button>
-          <span>{{ article.likes_count }}</span>
-        </div>
+            </button>
+            <span class="text-sm text-slate-600 dark:text-slate-300">{{ article.likes_count }}</span>
+          </div>
 
-
-
-        <!-- 게시글 관리 버튼 (내 글일 때만) -->
-        <BaseButtons v-if="isMyArticle" class="mt-4">
-          <BaseButton
-            color="info"
-            label="수정"
-            @click="goEdit"
-          />
-          <BaseButton
-            color="danger"
-            label="삭제"
-            @click="deleteArticle"
-          />
-        </BaseButtons>
+          <!-- 게시글 관리 버튼 (내 글일 때만) -->
+          <BaseButtons v-if="isMyArticle" class="mt-6" type="justify-end">
+            <BaseButton color="info" label="수정" @click="goEdit" />
+            <BaseButton color="danger" label="삭제" @click="deleteArticle" />
+          </BaseButtons>
+        </CardBox>
 
         <!-- ======================
             댓글 영역
         ====================== -->
-        <div class="mt-8">
-          <h3 class="font-bold mb-4">댓글</h3>
+        <CardBox class="rounded-2xl">
+          <h3 class="font-bold mb-4 text-slate-900 dark:text-slate-100">댓글</h3>
 
           <!-- 댓글 목록 -->
           <div v-for="comment in comments" :key="comment.id" class="border-b py-3">
@@ -313,9 +416,30 @@ const toggleCommentLike = async (commentId) => {
                 <UserAvatar :src="commentAvatar(comment)" :username="commentUserName(comment)" :size="32" />
                 <div>
                   <p class="text-sm text-gray-600">
-                    {{ commentUserName(comment) }} · {{ new Date(comment.created_at).toLocaleString() }}
+                    <RouterLink
+                      v-if="commentUserUsername(comment)"
+                      :to="{ name: 'UserProfile', params: { username: commentUserUsername(comment) } }"
+                      class="hover:underline"
+                    >
+                      {{ commentUserDisplayName(comment) }}
+                    </RouterLink>
+                    <span v-else>{{ commentUserDisplayName(comment) }}</span>
+                    <span>· {{ new Date(comment.created_at).toLocaleString() }}</span>
                   </p>
-                  <p class="mt-1 whitespace-pre-line">{{ comment.content }}</p>
+                  <div class="mt-1">
+                    <p v-if="editingCommentId !== comment.id" class="whitespace-pre-line">{{ comment.content }}</p>
+                    <div v-else class="space-y-2">
+                      <textarea
+                        v-model="editingCommentContent"
+                        class="w-full border rounded-xl p-3 bg-white dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
+                        rows="3"
+                      ></textarea>
+                      <div class="flex gap-2">
+                        <button class="text-blue-500 hover:underline" @click="saveEditComment(comment)">저장</button>
+                        <button class="text-slate-500 hover:underline" @click="cancelEditComment">취소</button>
+                      </div>
+                    </div>
+                  </div>
                   <div class="mt-2 flex items-center gap-2 text-sm">
                     <button @click="toggleCommentLike(comment.id)" class="hover:underline">
                       {{ comment.liked ? '❤️' : '🤍' }}
@@ -327,7 +451,13 @@ const toggleCommentLike = async (commentId) => {
 
               <!-- 내 댓글일 때만 액션 -->
               <div v-if="isMyComment(comment)" class="flex gap-2 text-sm">
-                <button class="text-blue-500 hover:underline" @click="editComment(comment)">수정</button>
+                <button
+                  v-if="editingCommentId !== comment.id"
+                  class="text-blue-500 hover:underline"
+                  @click="startEditComment(comment)"
+                >
+                  수정
+                </button>
                 <button class="text-red-500 hover:underline" @click="deleteComment(comment.id)">삭제</button>
               </div>
             </div>
@@ -341,7 +471,7 @@ const toggleCommentLike = async (commentId) => {
                 <textarea
                   v-model="commentContent"
                   :disabled="!accountStore.isLogin"
-                  class="w-full border rounded p-2"
+                  class="w-full border rounded-xl p-3 bg-white dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
                   rows="3"
                   placeholder="댓글을 입력하세요"
                 ></textarea>
@@ -365,9 +495,7 @@ const toggleCommentLike = async (commentId) => {
               </div>
             </div>
           </div>
-        </div>
-
-
+        </CardBox>
       </div>
     </SectionMain>
   </LayoutAuthenticated>

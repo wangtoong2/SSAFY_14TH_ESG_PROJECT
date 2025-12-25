@@ -7,19 +7,15 @@ const mainStore = useMainStore()
 const accountStore = useAccountStore()
 
 const avatarSrc = computed(() => {
+  const DEFAULT_AVATAR = '/usericon.png'
+  const API_BASE = 'http://127.0.0.1:8000'
+
   const val = mainStore.userAvatarUrl || accountStore.avatar
-  console.log('🔥 resolved avatar value:', val)
 
-  if (!val) {
-    console.log('⚠️ fallback avatar')
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${mainStore.userEmail || 'guest'}`
-  }
-
-  if (val.startsWith('blob:') || val.startsWith('http')) {
-    return val
-  }
-
-  return `http://127.0.0.1:8000${val}?t=${Date.now()}`
+  if (!val || typeof val !== 'string' || !val.trim()) return DEFAULT_AVATAR
+  if (val.startsWith('blob:') || val.startsWith('http')) return val
+  if (val.startsWith('/')) return `${API_BASE}${val}?t=${Date.now()}`
+  return DEFAULT_AVATAR
 })
 </script>
 

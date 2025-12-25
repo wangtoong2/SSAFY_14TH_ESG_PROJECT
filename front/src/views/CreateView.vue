@@ -39,10 +39,11 @@
             label="Submit"
           />
           <BaseButton
-            type="reset"
+            type="button"
             color="info"
             outline
-            label="Reset"
+            label="Cancel"
+            @click="cancel"
           />
         </BaseButtons>
 
@@ -83,9 +84,18 @@ const form = reactive({
   department: selectOptions[0],
 })
 
+const cancel = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  router.push({ name: 'ArticleList' })
+}
+
 const createArticle = async () => {
   const token = accountStore.token
-  console.log('🔥 createArticle 호출됨')
+  // DEBUG: 게시글 생성 함수 호출 여부 확인용 로그
+  // console.log('🔥 createArticle 호출됨')
 
   if (!form.title || !form.content) {
     alert('제목과 내용을 입력하세요.')
@@ -98,10 +108,10 @@ const createArticle = async () => {
     department: form.department ? form.department.id : null, 
   }
 
-  console.log('최종 전송 데이터(payload):', payload)
-
-  console.log('payload:', payload)
-  console.log('token:', token)
+  // DEBUG: 최종 전송 payload/토큰 확인용 로그
+  // console.log('최종 전송 데이터(payload):', payload)
+  // console.log('payload:', payload)
+  // console.log('token:', token)
 
   try {
     await axios.post(
@@ -115,7 +125,8 @@ const createArticle = async () => {
       }
     )
 
-    console.log('✅ 게시글 생성 성공')
+    // DEBUG: 게시글 생성 성공 여부 확인용 로그
+    // console.log('✅ 게시글 생성 성공')
     router.push({ name: 'ArticleList' })
 
   } catch (err) {

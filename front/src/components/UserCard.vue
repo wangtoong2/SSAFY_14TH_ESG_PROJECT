@@ -24,9 +24,9 @@ const avatarSrc = computed(() => {
       <UserAvatarCurrentUser class="lg:mx-12" />
       <div class="space-y-3 text-center md:text-left lg:mx-12">
         <h1 class="text-2xl">
-          안녕하세요, <b>{{ userName }}</b>!
+          안녕하세요, <b>{{ userName }}</b>님!
         </h1>
-        <p>Last login <b>12 mins ago</b> from <b>127.0.0.1</b></p>
+        <!-- <p>Last login <b>12 mins ago</b> from <b>127.0.0.1</b></p> -->
       </div>
     </BaseLevel>
   </CardBox>

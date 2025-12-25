@@ -53,11 +53,44 @@
   html, body {
     font-family: 'GmarketSans', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   }
+
+  /* Prevent text-caret/selection highlight on non-input areas */
+  body {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    cursor: default;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    user-select: text;
+    cursor: text;
+  }
+
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
+  }
   *,
   ::after,
   ::before,
   ::backdrop,
   ::file-selector-button {
     border-color: var(--color-gray-200, currentColor);
+  }
+}
+
+@layer components {
+  .cute-theme .card-box {
+    @apply border border-slate-200/80 shadow-sm;
+  }
+
+  .cute-theme.dark .card-box,
+  .dark .cute-theme .card-box {
+    @apply border-slate-700/60;
   }
 }

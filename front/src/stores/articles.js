@@ -12,7 +12,8 @@ export const useArticleStore = defineStore('article', () => {
     .then(res => {
       articles.value = res.data
     })
-    .catch(err => console.log(err))
+    // DEBUG: 게시글 목록 로드 실패 확인용 로그
+    .catch(err => console.error(err))
   }
   return {articles, API_URL, getArticles}
 }, {persist: true})

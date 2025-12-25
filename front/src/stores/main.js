@@ -31,7 +31,8 @@ export const useMainStore = defineStore('main', () => {
     }
     if (payload.avatar !== undefined) {
       userAvatarUrl.value = payload.avatar
-      console.log('✅ mainStore avatar set:', payload.avatar)
+      // DEBUG: 스토어 아바타 동기화 확인용 로그
+      // console.log('✅ mainStore avatar set:', payload.avatar)
     }
   }
 

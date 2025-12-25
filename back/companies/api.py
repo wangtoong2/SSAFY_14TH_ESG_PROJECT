@@ -4,10 +4,39 @@ import time
 import requests
 from django.conf import settings
 import os
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from .models import CorporateDisclosure
 # Use the official OpenDART HTTPS endpoint
 URL = 'https://opendart.fss.or.kr/api/list.json'
+
+
+_SESSION = None
+
+
+def _get_session():
+    """Shared requests.Session with sane retries for flaky external API calls."""
+    global _SESSION
+    if _SESSION is not None:
+        return _SESSION
+
+    s = requests.Session()
+    retry = Retry(
+        total=5,
+        connect=5,
+        read=5,
+        status=5,
+        backoff_factor=0.5,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=("GET", "POST"),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=20, pool_maxsize=20)
+    s.mount('https://', adapter)
+    s.mount('http://', adapter)
+    _SESSION = s
+    return _SESSION
 
 
 def _get_dart_api_key():
@@ -33,8 +62,8 @@ def get_all_corporate_disclosure_data(start_date, end_date):
     page_count = 100  # increase page size to reduce number of requests
     page_num = 1     # 페이지 번호
 
-    session = requests.Session()
-    headers = {'User-Agent': 'SSAFY-ESG-Project/1.0 (+https://example.com)'}
+    session = _get_session()
+    headers = {'User-Agent': 'SSAFY-ESG-Project/1.0'}
 
     while True:
         params = {
@@ -47,7 +76,7 @@ def get_all_corporate_disclosure_data(start_date, end_date):
         }
 
         try:
-            response = session.get(URL, params=params, headers=headers, timeout=30)
+            response = session.get(URL, params=params, headers=headers, timeout=(5, 30))
         except Exception as e:
             print(f"Request exception: {e}")
             break
@@ -115,13 +144,21 @@ def get_corporate_disclosure_data(corp_name, start_date, end_date):
     else:
         params['corp_name'] = corp
 
-    # DART API 요청
-    response = requests.get(URL, params=params)
+    session = _get_session()
+    headers = {'User-Agent': 'SSAFY-ESG-Project/1.0'}
 
-    if response.status_code == 200:
-        return response.json()  # JSON 형태로 반환
-    else:
-        return {'error': 'Failed to fetch data'}
+    try:
+        response = session.get(URL, params=params, headers=headers, timeout=(5, 30))
+    except requests.exceptions.RequestException as e:
+        return {'error': f'Request failed: {e}'}
+
+    if response.status_code != 200:
+        return {'error': f'Failed to fetch data (status={response.status_code})', 'body': response.text[:500]}
+
+    try:
+        return response.json()
+    except ValueError:
+        return {'error': 'Invalid JSON from DART', 'body': response.text[:500]}
 
 
 # Backwards-compatible wrappers (some modules expect these old names)

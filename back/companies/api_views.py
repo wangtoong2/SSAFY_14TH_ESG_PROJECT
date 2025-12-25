@@ -23,6 +23,7 @@ from .serializers import CompanyCommentSerializer
 from .models import CompanyComment, CompanyCommentLike
 from rest_framework import status
 from django.contrib.auth import get_user_model
+from .constants import classify_ksic_section
 
 User = get_user_model()
 
@@ -122,12 +123,22 @@ class CompanyProfileSummary(APIView):
         except Exception:
             canonical_stock_code = None
 
+        # Make a shallow copy so we can enrich response fields safely
+        profile = dict(data) if isinstance(data, dict) else (data or {})
+        overview = profile.get('company_overview') if isinstance(profile, dict) else None
+        if isinstance(overview, dict):
+            overview = dict(overview)
+            industry_code = overview.get('industry_code') or overview.get('induty_code')
+            overview['industry_category'] = classify_ksic_section(industry_code)
+            profile['company_overview'] = overview
+
         payload = {
             'company_id': c.id,
             'corp_name': c.corp_name,
             'corp_code': c.corp_code,
             'stock_code': canonical_stock_code,
-            'profile': data,
+            'industry_category': (overview.get('industry_category') if isinstance(overview, dict) else None),
+            'profile': profile,
         }
         return Response(payload)
 
@@ -283,7 +294,13 @@ class GPTRecommendCompanies(APIView):
                         'profile': data,
                     })
                 # keep top ordering
-                candidates.sort(key=lambda x: x['score'], reverse=True)
+                # Keep score ordering, but randomize within ties for variety.
+                import random
+                for it in candidates:
+                    it['_tie'] = random.random()
+                candidates.sort(key=lambda x: (x['score'], x['_tie']), reverse=True)
+                for it in candidates:
+                    it.pop('_tie', None)
             except Exception as e:
                 return Response({'error': f'Invalid selected_company_ids: {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -325,7 +342,22 @@ class CompanyList(APIView):
         corp_code = serializers.CharField(allow_null=True)
 
     def get(self, request):
-        qs = Company.objects.all().order_by('corp_name')[:500]
+        q = (request.query_params.get('q') or '').strip()
+        try:
+            limit = int(request.query_params.get('limit') or (2000 if q else 500))
+        except Exception:
+            limit = 2000 if q else 500
+
+        # guardrails
+        if limit < 1:
+            limit = 1
+        if limit > 5000:
+            limit = 5000
+
+        qs = Company.objects.all()
+        if q:
+            qs = qs.filter(corp_name__icontains=q)
+        qs = qs.order_by('corp_name')[:limit]
         out = [{'id': c.id, 'corp_name': c.corp_name, 'corp_code': c.corp_code} for c in qs]
         return Response({'companies': out})
 

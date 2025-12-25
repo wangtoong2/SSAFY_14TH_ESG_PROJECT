@@ -1,79 +1,105 @@
 <template>
-  <table class="w-full border-collapse">
-    <!-- 헤더 -->
-    <thead>
-      <tr class="border-b bg-gray-50 dark:bg-slate-800">
-        <th class="p-4 text-left w-16">번호</th>
-        <th class="p-4 text-left">제목</th>
-        <th class="p-4 text-left w-32">분류</th>
-        <th class="p-4 text-left w-32">작성자</th>
-        <th class="p-4 text-left w-40">작성시간</th>
-      </tr>
-    </thead>
+  <div class="overflow-x-auto">
+    <div class="overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-700/60">
+      <table class="w-full border-collapse text-sm">
+        <!-- 헤더 -->
+        <thead>
+          <tr class="border-b border-slate-200/70 bg-sky-50/70 text-slate-700 dark:border-slate-700/60 dark:bg-slate-800 dark:text-slate-200">
+            <th class="p-4 text-left w-16 font-semibold">번호</th>
+            <th class="p-4 text-left font-semibold">제목</th>
+            <th class="p-4 text-left w-40 font-semibold">분류</th>
+            <th class="p-4 text-left w-40 font-semibold">작성자</th>
+            <th class="p-4 text-left w-48 font-semibold">작성시간</th>
+          </tr>
+        </thead>
 
+        <!-- 바디 -->
+        <tbody>
+          <tr
+            v-for="(article, index) in filteredArticles"
+            :key="article.id"
+            class="border-b border-slate-200/70 text-slate-700 transition-colors odd:bg-white even:bg-slate-50/60 hover:bg-sky-50/70 dark:border-slate-700/60 dark:text-slate-200 dark:odd:bg-slate-900/20 dark:even:bg-slate-900/40 dark:hover:bg-slate-700/50"
+          >
+            <!-- 번호 -->
+            <td class="p-4">
+              <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                {{ index + 1 }}
+              </span>
+            </td>
 
-    <!-- 바디 -->
-    <tbody>
-      <tr
-        v-for="(article, index) in articles"
-        :key="article.id"
-        class="border-b hover:bg-gray-50 dark:hover:bg-slate-700"
-      >
-        <!-- 번호 -->
-        <td class="p-4">
-          {{ index + 1 }}
-        </td>
+            <!-- 제목 (클릭 가능) -->
+            <td class="p-4">
+              <RouterLink
+                :to="{ name: 'ArticleDetail', params: { id: article.id } }"
+                class="font-semibold text-slate-900 hover:underline dark:text-slate-100"
+              >
+                {{ article.title }}
+              </RouterLink>
+            </td>
 
-        <!-- 제목 (클릭 가능) -->
-        <td class="p-4 text-blue-600 hover:underline">
-          <RouterLink :to="{ name: 'ArticleDetail', params: { id: article.id } }">
-            {{ article.title }}
-          </RouterLink>
-        </td>
+            <!-- 분류 -->
+            <td class="p-4">
+              <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                {{ getDepartmentName(article) }}
+              </span>
+            </td>
 
-        <!-- 분류 -->
-        <td class="p-4">
-          <span class="text-sm text-gray-600">{{ getDepartmentName(article) }}</span>
-        </td>
+            <!-- 작성자 -->
+            <td class="p-4">
+              <RouterLink
+                v-if="getAuthorUsername(article)"
+                :to="{ name: 'UserProfile', params: { username: getAuthorUsername(article) } }"
+                class="flex items-center gap-2"
+              >
+                <UserAvatar :src="getAuthorAvatar(article)" :username="getAuthorUsername(article)" :size="20" />
+                <span class="text-sm font-medium hover:underline">{{ getAuthorDisplayName(article) }}</span>
+              </RouterLink>
+              <div v-else class="flex items-center gap-2">
+                <UserAvatar :src="getAuthorAvatar(article)" :username="getAuthorDisplayName(article)" :size="20" />
+                <span class="text-sm font-medium">{{ getAuthorDisplayName(article) }}</span>
+              </div>
+            </td>
 
-        <!-- 작성자 -->
-        <td class="p-4">
-          <div class="flex items-center gap-2">
-            <UserAvatar :src="getAuthorAvatar(article)" :username="getAuthorName(article)" :size="20" />
-            <span class="text-sm">{{ getAuthorName(article) }}</span>
-          </div>
-        </td>
+            <!-- 작성시간 -->
+            <td class="p-4 text-xs text-slate-500 dark:text-slate-300">
+              {{ new Date(article.created_at).toLocaleString() }}
+            </td>
+          </tr>
 
-        <!-- 작성시간 -->
-        <td class="p-4 text-sm text-gray-500">
-          {{ new Date(article.created_at).toLocaleString() }}
-        </td>
-
-      </tr>
-
-      <!-- 비어있을 때 -->
-      <tr v-if="articles.length === 0">
-        <td colspan="5" class="p-6 text-center text-gray-400">
-          게시글이 없습니다.
-        </td>
-      </tr>
-
-
-    </tbody>
-  </table>
+          <!-- 비어있을 때 -->
+          <tr v-if="filteredArticles.length === 0">
+            <td colspan="5" class="p-10 text-center text-slate-400 dark:text-slate-400">
+              {{ searchQueryTrimmed ? '검색 결과가 없습니다.' : '게시글이 없습니다.' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import axios from 'axios'
 import { useAccountStore } from '@/stores/accounts'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { useArticleStore } from '@/stores/articles'
 
+const props = defineProps({
+  searchQuery: { type: String, default: '' },
+})
+
 const accountStore = useAccountStore()
 const API_URL = 'http://127.0.0.1:8000/api/v1'
 const articles = ref([]) // 🔥 핵심
+
+const searchQueryTrimmed = computed(() => (props.searchQuery || '').trim().toLowerCase())
+const filteredArticles = computed(() => {
+  const q = searchQueryTrimmed.value
+  if (!q) return articles.value
+  return articles.value.filter((a) => String(a?.title || '').toLowerCase().includes(q))
+})
 
 // departments mapping
 const departments = ref([]) // raw list
@@ -110,7 +136,7 @@ const getDepartmentName = (article) => {
   if (article.department) {
     const id = String(article.department);
     // 상단에 선언된 deptMap이 있는지 확인하고 있으면 매핑, 없으면 숫자 표시
-    return (typeof deptMap !== 'undefined' && deptMap.value[id]) 
+    return (typeof deptMap.value !== 'undefined' && deptMap.value[id]) 
            ? deptMap.value[id] 
            : `부서(${id})`;
   }
@@ -124,7 +150,8 @@ const fetchArticles = async () => {
     articles.value = Array.isArray(res.data)
       ? res.data.sort((a, b) => b.id - a.id)
       : []
-    console.log('게시글 불러오기 성공:', articles.value)
+    // DEBUG: 게시글 목록 로드 성공 확인용 로그
+    // console.log('게시글 불러오기 성공:', articles.value)
   } catch (e) {
     articles.value = []
     console.error('Failed to load articles', e)
@@ -176,11 +203,18 @@ const isMyArticle = (article) => {
   return false
 }
 
-const getAuthorName = (article) => {
-  if (!article.user) return article.author || ''
-  if (typeof article.user === 'object') return article.user.username || article.user.name || ''
-  return article.user
+const getAuthorUsername = (article) => {
+  if (!article?.user) return ''
+  if (typeof article.user === 'object') return article.user.username || ''
+  return String(article.user || '')
 }
+
+const getAuthorDisplayName = (article) => {
+  if (!article?.user) return article.author || ''
+  if (typeof article.user === 'object') return article.user.nickname || article.user.username || article.user.name || ''
+  return String(article.user || '')
+}
+
 const getAuthorAvatar = (article) => {
   if (!article.user) return article.author_avatar || article.user_avatar || null
   if (typeof article.user === 'object') return article.user.avatar || article.user.profile_image || null

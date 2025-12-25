@@ -7,8 +7,37 @@ from rest_framework.authentication import TokenAuthentication
 
 from django.shortcuts import get_object_or_404
 
-from .serializers import ArticleListSerializer, ArticleSerializer, CommentSerializer
+from .serializers import ArticleListSerializer, ArticleSerializer, CommentSerializer, MyCommentSerializer
 from .models import Article, ArticleLike, Comment, CommentLike
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticatedOrReadOnly])
+def user_article_list(request, username):
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    target = get_object_or_404(User, username=username)
+    articles = Article.objects.filter(user=target).order_by('-created_at')
+    serializer = ArticleListSerializer(articles, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticatedOrReadOnly])
+def user_comment_list(request, username):
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    target = get_object_or_404(User, username=username)
+    comments = (
+        Comment.objects
+        .filter(user=target)
+        .select_related('article', 'article__department')
+        .order_by('-created_at')
+    )
+    serializer = MyCommentSerializer(comments, many=True)
+    return Response(serializer.data)
 
 
 @api_view(['GET', 'POST'])
@@ -16,14 +45,38 @@ from .models import Article, ArticleLike, Comment, CommentLike
 def article_list(request):
     if request.method == 'GET':
         articles = Article.objects.all()
-        serializer = ArticleListSerializer(articles, many=True)
+        serializer = ArticleListSerializer(articles, many=True, context={'request': request})
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        serializer = ArticleSerializer(data=request.data)
+        serializer = ArticleSerializer(data=request.data, context={'request': request})
         if serializer.is_valid(raise_exception=True):
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            article = serializer.save(user=request.user)
+            out = ArticleSerializer(article, context={'request': request})
+            return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def my_article_list(request):
+    articles = Article.objects.filter(user=request.user).order_by('-created_at')
+    serializer = ArticleListSerializer(articles, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def my_comment_list(request):
+    comments = (
+        Comment.objects
+        .filter(user=request.user)
+        .select_related('article', 'article__department')
+        .order_by('-created_at')
+    )
+    serializer = MyCommentSerializer(comments, many=True)
+    return Response(serializer.data)
 
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
@@ -40,20 +93,22 @@ def article_detail(request, article_pk):
             )
 
     if request.method == 'GET':
-        serializer = ArticleSerializer(article)
+        serializer = ArticleSerializer(article, context={'request': request})
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        serializer = ArticleSerializer(article, data=request.data)
+        serializer = ArticleSerializer(article, data=request.data, context={'request': request})
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response(serializer.data)
+            updated = serializer.save()
+            out = ArticleSerializer(updated, context={'request': request})
+            return Response(out.data)
 
     elif request.method == 'PATCH':
-        serializer = ArticleSerializer(article, data=request.data, partial=True)
+        serializer = ArticleSerializer(article, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response(serializer.data)
+            updated = serializer.save()
+            out = ArticleSerializer(updated, context={'request': request})
+            return Response(out.data)
 
     elif request.method == 'DELETE':
         article.delete()
@@ -91,18 +146,19 @@ def comment_list_create(request, article_pk):
     # 댓글 목록
     if request.method == 'GET':
         comments = article.comments.all()
-        serializer = CommentSerializer(comments, many=True)
+        serializer = CommentSerializer(comments, many=True, context={'request': request})
         return Response(serializer.data)
     # 댓글 작성
     elif request.method == 'POST':
         print(request.data)
-        serializer = CommentSerializer(data=request.data)
+        serializer = CommentSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.save(
+        comment = serializer.save(
             article=article,
             user=request.user    # ✅ 이제 진짜 유저
         )
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        out = CommentSerializer(comment, context={'request': request})
+        return Response(out.data, status=status.HTTP_201_CREATED)
     
 
 @api_view(['DELETE'])
@@ -124,14 +180,11 @@ def comment_update(request, comment_pk):
     if comment.user != request.user:
         return Response({'detail': '권한 없음'}, status=403)
 
-    serializer = CommentSerializer(
-        comment,
-        data=request.data,
-        partial=True
-    )
+    serializer = CommentSerializer(comment, data=request.data, partial=True, context={'request': request})
     serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
+    updated = serializer.save()
+    out = CommentSerializer(updated, context={'request': request})
+    return Response(out.data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

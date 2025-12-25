@@ -6,7 +6,7 @@ import { useAccountStore } from '@/stores/accounts'
 import { useDarkModeStore } from '@/stores/darkMode'
 
 import { menuAsideMainLogin, menuAsideMainLogout } from '@/menuAside'
-import menuNavBar from '@/menuNavBar'
+import buildMenuNavBar from '@/menuNavBar'
 
 import BaseIcon from '@/components/BaseIcon.vue'
 import NavBar from '@/components/NavBar.vue'
@@ -16,8 +16,10 @@ import FooterBar from '@/components/FooterBar.vue'
 const accountStore = useAccountStore()
 const darkModeStore = useDarkModeStore()
 const router = useRouter()
+const isCuteTheme = computed(() => true)
 
 const menuAsideMain = computed(() => (accountStore.isLogin ? menuAsideMainLogin : menuAsideMainLogout))
+const menuNavBar = computed(() => buildMenuNavBar(accountStore.isLogin))
 
 const menuClick = (event, item) => {
   if (item.isToggleLightDark) {
@@ -34,18 +36,16 @@ const menuClick = (event, item) => {
 
 
 <template>
-  <div
-    :class="{
-      'overflow-hidden lg:overflow-visible': isAsideMobileExpanded,
-    }"
-  >
+  <div>
     <div
-      :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
-      class="min-h-screen w-screen bg-gray-50 pt-14 transition-(--transition-position) lg:w-auto dark:bg-slate-800 dark:text-slate-100"
+      :class="[
+        'min-h-screen w-screen pt-14 transition-(--transition-position) lg:w-auto dark:text-slate-100',
+        isCuteTheme ? 'cute-theme bg-sky-50 dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800',
+      ]"
     >
       <NavBar :menu="menuNavBar" @menu-click="menuClick">
         <NavBarItemPlain use-margin>
-          <!-- optional search slot -->
+          
         </NavBarItemPlain>
       </NavBar>
       <slot />

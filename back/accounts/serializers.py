@@ -21,6 +21,7 @@ class CustomUserDetailsSerializer(UserDetailsSerializer):
     avatar = serializers.ImageField(read_only=True)
 
     nickname = serializers.CharField(required=False, allow_blank=True)
+    is_social = serializers.SerializerMethodField()
 
     class Meta(UserDetailsSerializer.Meta):
         fields = UserDetailsSerializer.Meta.fields + (
@@ -29,4 +30,12 @@ class CustomUserDetailsSerializer(UserDetailsSerializer):
             'interests',
             'avatar',
             'nickname',
+            'is_social',
         )
+
+    def get_is_social(self, obj):
+        # django-allauth attaches SocialAccount via reverse relation.
+        rel = getattr(obj, 'socialaccount_set', None)
+        if rel is None:
+            return False
+        return rel.exists()

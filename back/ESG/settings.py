@@ -104,6 +104,8 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:5173",
+    "http://127.0.0.1:5174",
+    "http://localhost:5174",
 ]
 
 ROOT_URLCONF = 'ESG.urls'
@@ -200,6 +202,14 @@ AUTH_USER_MODEL = 'accounts.User'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ACCOUNT_EMAIL_REQUIRED = False
+
+# Social login / signup
+# Ensure social accounts can auto-create users even when username is required.
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_ADAPTER = 'accounts.adapters.CustomSocialAccountAdapter'
+
+# Dev-friendly (optional): avoid blocking social signup on email verification.
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 
 # django live share용 코드
 # 배포시 제거해야함

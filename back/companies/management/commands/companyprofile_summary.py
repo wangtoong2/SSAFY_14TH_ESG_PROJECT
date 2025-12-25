@@ -3,10 +3,6 @@ from django.core.management.base import BaseCommand
 from companies.models import Company, CompanyProfile
 from companies.services import (
     classify_company_size,
-<<<<<<< HEAD
-=======
-    build_fixed_companyprofile_payload,
->>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
     extract_region_from_address,
     fetch_company_data,
 )
@@ -50,39 +46,14 @@ class Command(BaseCommand):
         if refresh or not data:
             data = fetch_company_data(c.corp_code or c.corp_name)
             data['corp_name'] = c.corp_name
-<<<<<<< HEAD
             data['stock_code'] = c.stock_code
             try:
                 data['company_size'] = classify_company_size(c.stock_code, data.get('financials'))
-=======
-            data['corp_code'] = c.corp_code
-            canonical_stock_code = (c.stock_code or '').strip() or None
-            data['stock_code'] = canonical_stock_code
-
-            # Avoid duplicated identifiers inside company_overview
-            try:
-                overview = data.get('company_overview') if isinstance(data, dict) else None
-                if isinstance(overview, dict):
-                    for k in ['corp_name', 'corp_code', 'stock_code']:
-                        overview.pop(k, None)
-                    data['company_overview'] = overview
-            except Exception:
-                pass
-            try:
-                data['company_size'] = classify_company_size(canonical_stock_code, data.get('financials'))
-            except Exception:
-                pass
-
-            try:
-                if isinstance(data.get('company_overview'), dict):
-                    data['company_overview']['company_size'] = data.get('company_size')
->>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
             except Exception:
                 pass
             CompanyProfile.objects.update_or_create(company=c, defaults={'data': data})
 
         overview = (data or {}).get('company_overview') or {}
-<<<<<<< HEAD
         addr = overview.get('addr')
 
         payload = {
@@ -91,9 +62,6 @@ class Command(BaseCommand):
             'financials': (data or {}).get('financials'),
             'region': overview.get('region') or (extract_region_from_address(addr) if addr else None),
         }
-=======
-        payload = build_fixed_companyprofile_payload(c, data)
->>>>>>> f040f670656b0817c039ea6fe66b41c4dfe2c50e
 
         # JSON output (ensure_ascii=False for Korean)
         try:

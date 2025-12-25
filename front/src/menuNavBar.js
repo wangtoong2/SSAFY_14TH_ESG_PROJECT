@@ -1,16 +1,16 @@
 import {
   mdiAccount,
-  mdiCogOutline,
-  mdiEmail,
+  mdiCommentTextOutline,
+  mdiFileDocumentOutline,
   mdiLogout,
   mdiThemeLightDark,
   mdiMenu,
   mdiViewList,
+  mdiLogin,
+  mdiAccountPlus,
 } from '@mdi/js'
 
-import { useAccountStore } from '@/stores/accounts'
-
-export default [
+export const buildMenuNavBar = (isLogin) => [
   {
     icon: mdiThemeLightDark,
     isToggleLightDark: true,
@@ -18,16 +18,25 @@ export default [
   {
     icon: mdiMenu,
     label: 'Menu',
-    menu: [
-      { icon: mdiAccount, label: '프로필', to: '/profile' },
-      { icon: mdiViewList, label: '내 관심기업', to: '/favorites' },
-      { isDivider: true },
-      { icon: mdiLogout, label: '로그아웃', isLogout: true },
-    ],
+    menu: isLogin
+      ? [
+          { icon: mdiAccount, label: '프로필', to: '/profile/edit' },
+          { icon: mdiViewList, label: '내 관심기업', to: '/favorites' },
+          { icon: mdiFileDocumentOutline, label: '내가 작성한 글', to: '/my/articles' },
+          { icon: mdiCommentTextOutline, label: '내가 작성한 댓글', to: '/my/comments' },
+          { isDivider: true },
+          { icon: mdiLogout, label: '로그아웃', isLogout: true },
+        ]
+      : [
+          { icon: mdiLogin, label: '로그인', to: '/login' },
+          { icon: mdiAccountPlus, label: '회원가입', to: '/signup' },
+        ],
     // mark this as the right-side hamburger so navbar item can style it specially
     isRightHamburger: true,
   },
 ]
+
+export default buildMenuNavBar
 
 
 

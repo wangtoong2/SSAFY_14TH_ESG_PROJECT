@@ -1,20 +1,80 @@
 from django.shortcuts import render
 
-# Social login package
+# Social login
 from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 
-# Google login package
+# OAuth2 providers (installed via django-allauth)
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-
-
-# Create your views here.
+from allauth.socialaccount.providers.kakao.views import KakaoOAuth2Adapter
+from allauth.socialaccount.providers.naver.views import NaverOAuth2Adapter
+from allauth.socialaccount.models import SocialApp
+from django.core.exceptions import ImproperlyConfigured
+from rest_framework.response import Response
+from rest_framework import status
 
 
 class GoogleLogIn(SocialLoginView):
+    """POST { access_token } -> returns DRF token key.
+
+    Frontend SPA can use OAuth implicit flow and send the provider access_token.
+    """
+
     adapter_class = GoogleOAuth2Adapter
-    callback_url = 'http://localhost:8000/accounts/google/login/callback/'
+    # If you later switch to authorization-code flow, set this to your SPA callback.
+    callback_url = 'http://127.0.0.1:5173/login'
     client_class = OAuth2Client
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except SocialApp.DoesNotExist:
+            return Response(
+                {
+                    'detail': 'Google SocialApp이 설정되지 않았습니다. Django admin에서 SocialApp(Provider=Google)을 생성하고 Site에 연결하세요.'
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ImproperlyConfigured as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class KakaoLogIn(SocialLoginView):
+    adapter_class = KakaoOAuth2Adapter
+    callback_url = 'http://127.0.0.1:5173/login'
+    client_class = OAuth2Client
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except SocialApp.DoesNotExist:
+            return Response(
+                {
+                    'detail': 'Kakao SocialApp이 설정되지 않았습니다. Django admin에서 SocialApp(Provider=Kakao)을 생성하고 Site에 연결하세요.'
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ImproperlyConfigured as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class NaverLogIn(SocialLoginView):
+    adapter_class = NaverOAuth2Adapter
+    callback_url = 'http://127.0.0.1:5173/login'
+    client_class = OAuth2Client
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except SocialApp.DoesNotExist:
+            return Response(
+                {
+                    'detail': 'Naver SocialApp이 설정되지 않았습니다. Django admin에서 SocialApp(Provider=Naver)을 생성하고 Site에 연결하세요.'
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ImproperlyConfigured as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 from rest_framework.decorators import api_view, permission_classes, authentication_classes

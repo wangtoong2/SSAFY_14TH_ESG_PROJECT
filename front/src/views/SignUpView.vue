@@ -87,7 +87,11 @@ const signUp = async () => {
   <LayoutGuest>
     <SectionFullScreen class="login-bg-soft">
       <CardBox class="login-card">
-        <img src="/jobffy_logo.png" alt="logo" class="auth-logo" />
+        <div class="flex justify-center">
+          <RouterLink :to="{ name: 'dashboard' }" class="inline-block">
+            <img src="/jobffy_logo.png" alt="logo" class="auth-logo" />
+          </RouterLink>
+        </div>
         <h1 class="signup-title">회원가입</h1>
 
         <!-- 폼은 하나만 -->

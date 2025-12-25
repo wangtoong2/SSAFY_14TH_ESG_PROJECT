@@ -6,12 +6,19 @@ import { gradientBgPurplePink, gradientBgDark, gradientBgPinkRed } from '@/color
 const props = defineProps({
   bg: {
     type: String,
-    required: true,
-    validator: (value) => ['purplePink', 'pinkRed'].includes(value),
+    // Auth screens sometimes want a plain/soft background.
+    // Making this optional avoids noisy console warnings when no gradient is desired.
+    required: false,
+    default: 'none',
+    validator: (value) => ['none', 'purplePink', 'pinkRed'].includes(value),
   },
 })
 
 const colorClass = computed(() => {
+  if (props.bg === 'none') {
+    return ''
+  }
+
   if (useDarkModeStore().isEnabled) {
     return gradientBgDark
   }

@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import GoogleLogIn, withdraw_user
+from .views import GoogleLogIn, KakaoLogIn, NaverLogIn, withdraw_user
 from . import views
 
 urlpatterns = [
@@ -12,6 +12,8 @@ urlpatterns = [
 
     # 소셜 로그인
     path('google/', GoogleLogIn.as_view(), name='google_login'),
+    path('kakao/', KakaoLogIn.as_view(), name='kakao_login'),
+    path('naver/', NaverLogIn.as_view(), name='naver_login'),
     
 
     # path('follow/<int:user_id>/', views.follow_user, name='follow_user'),

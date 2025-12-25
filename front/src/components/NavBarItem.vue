@@ -97,20 +97,14 @@ const darkModeStore = useDarkModeStore()
     :is="is"
     v-else
     ref="root"
-    class="relative block cursor-pointer items-center lg:flex"
+    class="relative block cursor-pointer select-none items-center lg:flex"
     :class="componentClass"
     :to="item.to ?? null"
     :href="item.href ?? null"
     :target="item.target ?? null"
     @click="menuClick"
   >
-    <div
-      class="flex items-center"
-      :class="{
-        'bg-gray-100 p-3 lg:bg-transparent lg:p-0 dark:bg-slate-800 lg:dark:bg-transparent':
-          item.menu,
-      }"
-    >
+    <div class="flex items-center">
       <UserAvatarCurrentUser v-if="item.isCurrentUser" class="mr-3 inline-flex h-6 w-6" />
       <BaseIcon
         v-if="item.icon"
@@ -134,9 +128,10 @@ const darkModeStore = useDarkModeStore()
     </div>
     <div
       v-if="item.menu"
-      class="border-b border-gray-100 text-sm lg:absolute lg:top-full lg:left-0 lg:z-20 lg:rounded-lg lg:border lg:bg-white lg:shadow-lg dark:border-slate-700 lg:dark:bg-slate-800"
+      class="absolute top-full z-20 mt-2 rounded-lg border bg-white text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800"
       :class="[
-        { 'lg:hidden': !isDropdownActive },
+        { hidden: !isDropdownActive },
+        item.isRightHamburger ? 'right-0' : 'left-0',
         item.isRightHamburger ? 'lg:min-w-[150%]' : 'lg:min-w-full',
       ]"
     >

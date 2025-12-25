@@ -24,6 +24,8 @@ const avatarFile = ref(null)
 const selectedAvatar = ref(null)
 const selectedAvatarPreview = ref(null)
 
+const isSocialUser = ref(false)
+
 const onAvatarChange = (file) => {
   // clear
   if (!file) {
@@ -44,7 +46,8 @@ const onAvatarChange = (file) => {
   const url = URL.createObjectURL(file)
   selectedAvatarPreview.value = url // show preview locally
 
-  console.log('선택된 아바타(미저장 프리뷰):', file, url)
+  // DEBUG: 아바타 파일 선택/프리뷰 URL 생성 확인용 로그
+  // console.log('선택된 아바타(미저장 프리뷰):', file, url)
 }
 
 const avatarPreview = computed(() => {
@@ -227,7 +230,8 @@ const withdraw = () => {
 }
 
 onMounted(async () => {
-  console.log('EMAIL:', profileForm.email, typeof profileForm.email)
+  // DEBUG: 프로필 로드 전 이메일 값 확인용 로그
+  // console.log('EMAIL:', profileForm.email, typeof profileForm.email)
   try {
     const res = await axios.get(
       'http://127.0.0.1:8000/accounts/user/',
@@ -237,6 +241,8 @@ onMounted(async () => {
         },
       }
     )
+
+    isSocialUser.value = !!res.data.is_social
 
     // 1️⃣ form 채우기
     profileForm.nickname = res.data.nickname || res.data.username
@@ -271,49 +277,90 @@ onMounted(async () => {
 
       <UserCard class="mb-6" />
 
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div :class="isSocialUser ? 'grid grid-cols-1 gap-6' : 'grid grid-cols-1 gap-6 lg:grid-cols-2'">
         <!-- Left column: avatar + nickname -->
         <div>
-          <CardBox class="mb-4 flex flex-col items-center">
-            <FormField label="Avatar" help="Max 500kb">
-              <FormFilePicker
-                label="Upload"
-                v-model="selectedAvatar"
-                accept="image/*"
-                @update:model-value="onAvatarChange"
-              />
-              <div v-if="avatarPreview" class="mt-3">
-                <img
-                  :src="avatarPreview"
-                  class="w-32 h-32 rounded-full object-cover object-center border"
-                  style="width:128px;height:128px;"
+          <div v-if="isSocialUser" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardBox class="mb-0 w-full flex flex-col items-center">
+              <FormField label="Avatar" help="Max 500kb">
+                <FormFilePicker
+                  label="Upload"
+                  v-model="selectedAvatar"
+                  accept="image/*"
+                  @update:model-value="onAvatarChange"
                 />
-              </div>
-            </FormField>
-            <button class="mt-2 px-4 py-1 bg-blue-500 text-white rounded" @click="uploadAvatar">
-              아바타 저장
-            </button>
-          </CardBox>
+                <div v-if="avatarPreview" class="mt-3">
+                  <img
+                    :src="avatarPreview"
+                    class="w-32 h-32 rounded-full object-cover object-center border"
+                    style="width:128px;height:128px;"
+                  />
+                </div>
+              </FormField>
+              <button class="mt-2 px-4 py-1 bg-blue-500 text-white rounded" @click="uploadAvatar">
+                아바타 저장
+              </button>
+            </CardBox>
 
-          <CardBox is-form @submit.prevent="submitProfile">
-            <FormField label="Nickname" help="표시될 별명입니다">
-              <FormControl
-                v-model="profileForm.nickname"
-                :icon="mdiAccount"
-                name="nickname"
-                autocomplete="nickname"
-              />
-            </FormField>
-            <template #footer>
-              <BaseButtons>
-                <BaseButton color="info" type="submit" label="닉네임 저장" />
-              </BaseButtons>
-            </template>
-          </CardBox>
+            <CardBox is-form @submit.prevent="submitProfile" class="mb-0 w-full">
+              <FormField label="Nickname" help="표시될 별명입니다">
+                <FormControl
+                  v-model="profileForm.nickname"
+                  :icon="mdiAccount"
+                  name="nickname"
+                  autocomplete="nickname"
+                />
+              </FormField>
+              <template #footer>
+                <BaseButtons>
+                  <BaseButton color="info" type="submit" label="닉네임 저장" />
+                </BaseButtons>
+              </template>
+            </CardBox>
+          </div>
+
+          <template v-else>
+            <CardBox class="mb-4 flex flex-col items-center">
+              <FormField label="Avatar" help="Max 500kb">
+                <FormFilePicker
+                  label="Upload"
+                  v-model="selectedAvatar"
+                  accept="image/*"
+                  @update:model-value="onAvatarChange"
+                />
+                <div v-if="avatarPreview" class="mt-3">
+                  <img
+                    :src="avatarPreview"
+                    class="w-32 h-32 rounded-full object-cover object-center border"
+                    style="width:128px;height:128px;"
+                  />
+                </div>
+              </FormField>
+              <button class="mt-2 px-4 py-1 bg-blue-500 text-white rounded" @click="uploadAvatar">
+                아바타 저장
+              </button>
+            </CardBox>
+
+            <CardBox is-form @submit.prevent="submitProfile">
+              <FormField label="Nickname" help="표시될 별명입니다">
+                <FormControl
+                  v-model="profileForm.nickname"
+                  :icon="mdiAccount"
+                  name="nickname"
+                  autocomplete="nickname"
+                />
+              </FormField>
+              <template #footer>
+                <BaseButtons>
+                  <BaseButton color="info" type="submit" label="닉네임 저장" />
+                </BaseButtons>
+              </template>
+            </CardBox>
+          </template>
         </div>
 
-        <!-- Right column: password box -->
-        <div>
+        <!-- Right column: password box (hide for social login users) -->
+        <div v-if="!isSocialUser">
           <CardBox is-form @submit.prevent="submitPass">
             <FormField label="현재 비밀번호" help="Required. Your current password">
               <FormControl
@@ -471,7 +518,6 @@ onMounted(async () => {
           <template #footer>
             <BaseButtons>
               <BaseButton color="info" type="submit" label="Submit" />
-              <BaseButton color="info" label="Options" outline />
             </BaseButtons>
           </template>
         </CardBox>

@@ -10,7 +10,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <FormField label="지역">
-                  <select v-model="form.region" class="mt-1 block w-full border rounded p-2">
+                  <select v-model="form.region" class="mt-1 block w-full border rounded p-2 bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600">
                     <option value="">전체</option>
                     <option v-for="r in regions" :key="r" :value="r">{{ r }}</option>
                   </select>
@@ -19,7 +19,7 @@
 
               <div>
                 <FormField label="산업분야">
-                  <select v-model="form.industry" class="mt-1 block w-full border rounded p-2">
+                  <select v-model="form.industry" class="mt-1 block w-full border rounded p-2 bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600">
                     <option value="">전체</option>
                     <option v-for="ind in industries" :key="ind" :value="ind">{{ ind }}</option>
                   </select>
@@ -28,7 +28,7 @@
 
               <div>
                 <FormField label="기업 규모">
-                  <select v-model="form.size" class="mt-1 block w-full border rounded p-2">
+                  <select v-model="form.size" class="mt-1 block w-full border rounded p-2 bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600">
                     <option value="">전체</option>
                     <option value="중소">중소</option>
                     <option value="중견">중견</option>
@@ -39,17 +39,12 @@
 
               <div>
                 <FormField label="결과 개수">
-                  <input type="number" v-model.number="form.top_n" min="1" max="50" class="mt-1 block w-full border rounded p-2" />
+                  <input type="number" v-model.number="form.top_n" min="1" max="50" class="mt-1 block w-full border rounded p-2 bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600" />
                 </FormField>
               </div>
             </div>
 
             <div class="flex items-center gap-4">
-              <label class="inline-flex items-center">
-                <input type="checkbox" v-model="form.use_gpt" class="mr-2" />
-                <span>GPT 추천 사용</span>
-              </label>
-
               <BaseButton :disabled="loading" color="info" type="submit" :label="loading ? '조회중...' : '추천 받기'" />
             </div>
           </CardBox>
@@ -62,25 +57,24 @@
 
             <div v-if="results && results.length">
               <ul class="space-y-3">
-                <li v-for="item in results" :key="item.company_id || item.id" class="p-3 border rounded">
+                <li v-for="item in results" :key="item.company_id || item.id" class="p-3 border rounded dark:border-slate-700 dark:bg-slate-900/40">
                   <div class="flex justify-between items-start">
                     <div>
-                      <RouterLink :to="{ name: 'CompanyDetail', params: { id: item.company_id || item.id } }" class="font-semibold text-blue-600 hover:underline">
+                      <RouterLink :to="{ name: 'CompanyDetail', params: { id: item.company_id || item.id } }" class="font-semibold text-blue-600 hover:underline dark:text-blue-400">
                         {{ getCompanyName(item) || '회사명' }}
                       </RouterLink>
-                      <div class="text-sm text-gray-600">ID: {{ item.company_id || item.id || '-' }}</div>
                     </div>
                     <div class="text-right">
                       <div v-if="item.rank" class="text-sm font-medium">Rank: {{ item.rank }}</div>
                       <div v-else-if="item.score" class="text-sm font-medium">Score: {{ item.score ? Number(item.score).toFixed(2) : '-' }}</div>
                     </div>
                   </div>
-                  <div class="mt-2 text-sm text-gray-800">{{ item.reason || (item.breakdown && JSON.stringify(item.breakdown)) || (item.profile && item.profile.recommend_reason) || '' }}</div>
+                  <div class="mt-2 text-sm text-gray-800 dark:text-slate-200">{{ item.reason || (item.breakdown && JSON.stringify(item.breakdown)) || (item.profile && item.profile.recommend_reason) || '' }}</div>
                 </li>
               </ul>
             </div>
 
-            <div v-else-if="!loading" class="text-gray-600">추천 결과가 없습니다. 조건을 입력하고 조회하세요.</div>
+            <div v-else-if="!loading" class="text-gray-600 dark:text-slate-300">추천 결과가 없습니다. 조건을 입력하고 조회하세요.</div>
           </CardBox>
         </div>
       </div>
@@ -106,13 +100,26 @@ export default {
     return {
       mdiChartPie,
       regions: ['서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시', '제주특별자치도', '경기도'],
-      industries: ['IT', '제조', '금융', '헬스케어', '서비스', '디자인', '교육', '미디어', '건설', '에너지'],
+      // KSIC major sections (based on 2-digit ranges)
+      industries: [
+        '농업, 임업 및 어업',
+        '광업',
+        '제조업',
+        '전기, 가스, 증기 및 공기조절 공급업',
+        '건설업',
+        '도매 및 소매업',
+        '운수 및 창고업',
+        '숙박 및 음식점업',
+        '정보통신업',
+        '금융 및 보험업',
+        '부동산업',
+        '전문, 과학 및 기술 서비스업',
+      ],
       form: {
         region: '서울특별시',
         industry: '',
         size: '',
         top_n: 5,
-        use_gpt: true,
       },
       loading: false,
       results: null,
@@ -165,7 +172,7 @@ export default {
           industry: this.form.industry || undefined,
           size: this.form.size || undefined,
           top_n: this.form.top_n || 10,
-          use_gpt: this.form.use_gpt,
+          use_gpt: true,
         }
 
         const API_BASE = 'http://127.0.0.1:8000'

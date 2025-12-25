@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue'
-import { useAccountStore } from '@/stores/accounts'
 
 const props = defineProps({
   src: { type: String, default: null },      // explicit image URL/path/blob
@@ -8,14 +7,15 @@ const props = defineProps({
   size: { type: [Number, String], default: 40 }, // px
 })
 
-const accountStore = useAccountStore()
-
 const resolvedSrc = computed(() => {
-  const val = props.src || accountStore.avatar || accountStore.userName
-  if (!val) return `https://api.dicebear.com/7.x/avataaars/svg?seed=${(props.username || accountStore.userName || 'guest')}`
+  const DEFAULT_AVATAR = '/usericon.png'
+  const API_BASE = 'http://127.0.0.1:8000'
+
+  const val = props.src
+  if (!val || typeof val !== 'string' || !val.trim()) return DEFAULT_AVATAR
   if (val.startsWith('blob:') || val.startsWith('http')) return val
-  // server-relative path
-  return `http://127.0.0.1:8000${val}?t=${Date.now()}`
+  if (val.startsWith('/')) return `${API_BASE}${val}?t=${Date.now()}`
+  return DEFAULT_AVATAR
 })
 
 const sizePx = computed(() => {
@@ -28,7 +28,7 @@ const sizePx = computed(() => {
   <div :style="{ width: sizePx, height: sizePx }" class="inline-block overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
     <img
       :src="resolvedSrc"
-      :alt="props.username || accountStore.userName || 'avatar'"
+      :alt="props.username || 'avatar'"
       class="w-full h-full object-cover object-center"
     />
   </div>

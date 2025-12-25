@@ -9,6 +9,7 @@ class CompanyCommentSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
+    liked = serializers.SerializerMethodField()
 
     class Meta:
         model = CompanyComment
@@ -20,6 +21,7 @@ class CompanyCommentSerializer(serializers.ModelSerializer):
             'updated_at',
             'likes_count',
             'is_liked',
+            'liked',
         )
 
     def get_likes_count(self, obj):
@@ -30,6 +32,9 @@ class CompanyCommentSerializer(serializers.ModelSerializer):
         if request and getattr(request, 'user', None) and request.user.is_authenticated:
             return obj.comment_likes.filter(user=request.user).exists()
         return False
+
+    def get_liked(self, obj):
+        return self.get_is_liked(obj)
 
     def get_user(self, obj):
         u = getattr(obj, 'user', None)
