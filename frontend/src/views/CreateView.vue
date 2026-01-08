@@ -16,11 +16,13 @@
   import axios from 'axios';
   import { useArticleStore } from '@/stores/articles';
   import { useRouter } from 'vue-router';
+  import { useAccountStore } from '@/stores/accounts';
 
   const title = ref(null)
   const content = ref(null)
 
   const store = useArticleStore()
+  const accountStore = useAccountStore()
   const router = useRouter()
 
   const createArticle = function(){
@@ -30,6 +32,9 @@
       data : {
         title : title.value,
         content : content.value
+      },
+      headers: {
+        'Authorization': `Token ${accountStore.token}`
       },
     })
     .then(() => {

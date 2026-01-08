@@ -1,3 +1,42 @@
-from django.shortcuts import render
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework import status
 
-# Create your views here.
+# permission Decorators
+from rest_framework.decorators import permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+
+from rest_framework.authentication import TokenAuthentication, BasicAuthentication
+from django.shortcuts import get_object_or_404, get_list_or_404
+
+from .serializers import ArticleListSerializer, ArticleSerializer
+from .models import Article
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication, BasicAuthentication])
+# @permission_classes([IsAuthenticatedOrReadOnly])
+def article_list(request):
+    print('USER:', request.user)
+    print('AUTH:', request.auth)
+    if request.method == 'GET':
+        articles = get_list_or_404(Article)
+        serializer = ArticleListSerializer(articles, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = ArticleSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            # serializer.save()
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+def article_detail(request, article_pk):
+    article = get_object_or_404(Article, pk=article_pk)
+
+    if request.method == 'GET':
+        serializer = ArticleSerializer(article)
+        return Response(serializer.data)
